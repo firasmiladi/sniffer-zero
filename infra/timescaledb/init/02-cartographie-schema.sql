@@ -146,7 +146,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     UPDATE cartographie.emetteurs
     SET niveau_menace = CASE
-        WHEN type_emetteur IN ('brouilleur', 'drone_militaire') THEN 90
+        WHEN type_emetteur IN ('brouilleur', 'drone_pro') THEN 90
         WHEN type_emetteur = 'inconnu' AND NEW.puissance_dbm > -30 THEN 75
         WHEN type_emetteur = 'drone_commercial' THEN 60
         ELSE niveau_menace

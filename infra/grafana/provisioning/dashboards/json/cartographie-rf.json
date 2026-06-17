@@ -85,7 +85,7 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["cartographie", "rf", "militaire", "sigint"],
+  "tags": ["cartographie", "rf", "institutionnel", "sigint"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "uid": "cartographie-rf-defense"
