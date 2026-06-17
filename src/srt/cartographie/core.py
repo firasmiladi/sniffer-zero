@@ -49,8 +49,8 @@ class TypeEmetteur(str, Enum):
     NAVIRE = "navire"
 
 class PrioriteSignal(int, Enum):
-    """Priorité pour l'analyse militaire"""
-    CRITIQUE = 100  # Brouilleurs, drones, équipements militaires
+    """Priorité pour l'analyse opérationnelle"""
+    CRITIQUE = 100  # Brouilleurs, drones, équipements critiques
     HAUTE = 75      # Equipements inconnus, signaux cryptés
     MOYENNE = 50    # WiFi enterprise, BLE medical
     BASSE = 25      # WiFi domestique, BLE grand public

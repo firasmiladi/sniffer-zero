@@ -6,7 +6,7 @@ Surveille l'environnement WiFi et ALERTE si:
 - Le jitter beacon d'un AP est anormal (software AP = hostapd)
 - Un nouveau AP apparaît soudainement (deployed attacker)
 
-Protège les réseaux WiFi militaires contre les attaquants.
+Protège les réseaux WiFi institutionnels contre les attaquants.
 
 MITRE: Defense against T1557
 Hardware: ALFA AWUS036NH (mode monitor)

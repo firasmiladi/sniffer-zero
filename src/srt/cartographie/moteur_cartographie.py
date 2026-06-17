@@ -53,7 +53,7 @@ class ConfigCartographie:
     format_export: str = "json"
     dossier_export: str = "data/cartographie"
 
-    # Paramètres militaires
+    # Paramètres opérationnels
     mode_alerte: bool = True
     seuil_alerte_menace: int = 60
     frequences_prioritaires_mhz: List[float] = field(
@@ -534,7 +534,7 @@ class MoteurCartographie:
         return menaces
 
     def _generer_recommandations(self) -> List[Dict]:
-        """Génère des recommandations militaires basées sur l'analyse"""
+        """Génère des recommandations opérationnelles basées sur l'analyse"""
         recommandations = []
 
         # Analyser la situation
