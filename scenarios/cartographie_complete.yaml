@@ -1,0 +1,179 @@
+# Scénario: Cartographie RF Complète
+# 
+# Ce scénario effectue un balayage complet de l'environnement RF
+# et génère un rapport de cartographie pour le commandement.
+
+name: "Cartographie RF Complète - Environnement Militaire"
+description: |
+  Balayage exhaustif de toutes les bandes ISM autorisées.
+  Détecte, localise et caractérise chaque émetteur dans l'espace.
+  Génère un rapport classifié avec carte des menaces.
+
+operator: "Opérateur Cartographie RF"
+
+# Configuration du balayage
+configuration:
+  # Bandes à balayer (toutes les ISM autorisées)
+  bandes:
+    - nom: "ISM_433"
+      debut_mhz: 433.0
+      fin_mhz: 435.0
+      pas_mhz: 0.125
+      temps_par_pas_ms: 200
+      priorite: haute
+
+    - nom: "ISM_868"
+      debut_mhz: 863.0
+      fin_mhz: 870.0
+      pas_mhz: 0.125
+      temps_par_pas_ms: 200
+      priorite: haute
+
+    - nom: "WiFi_2.4GHz"
+      debut_mhz: 2400.0
+      fin_mhz: 2500.0
+      pas_mhz: 1.0
+      temps_par_pas_ms: 100
+      priorite: critique
+
+    - nom: "WiFi_5GHz_UNII1"
+      debut_mhz: 5150.0
+      fin_mhz: 5350.0
+      pas_mhz: 5.0
+      temps_par_pas_ms: 100
+      priorite: haute
+
+    - nom: "WiFi_5GHz_UNII3"
+      debut_mhz: 5470.0
+      fin_mhz: 5725.0
+      pas_mhz: 5.0
+      temps_par_pas_ms: 100
+      priorite: haute
+
+    - nom: "ISM_5.8GHz"
+      debut_mhz: 5725.0
+      fin_mhz: 5875.0
+      pas_mhz: 5.0
+      temps_par_pas_ms: 100
+      priorite: moyenne
+
+  # Paramètres de détection
+  detection:
+    seuil_dbm: -85
+    seuil_snr_db: 5
+    temps_integration_ms: 50
+    fft_size: 4096
+    fenetre: "blackman-harris"
+
+  # Paramètres de localisation
+  localisation:
+    methode: "hybride"
+    nb_mesures_minimum: 3
+    incertitude_max_m: 20.0
+    modele_propagation: "log-distance"
+    exposant_propagation: 2.7
+
+  # Paramètres de rapport
+  rapport:
+    format: ["json", "pdf"]
+    inclure_spectrogrammes: true
+    inclure_carte_positions: true
+    inclure_trajectoires: true
+
+# Étapes du scénario
+steps:
+  # Phase 1: Initialisation
+  - module: "cartographie.init"
+    description: "Initialisation du système de cartographie"
+    params:
+      verifier_hardware: true
+      calibrer_hackrf: true
+      verifier_cage_faraday: true
+
+  # Phase 2: Balayage large bande (vue d'ensemble)
+  - module: "cartographie.balayage_large_bande"
+    description: "Premier balayage pour inventaire global"
+    params:
+      mode: "rapide"
+      duree_totale_min: 5
+      priorite_bandes: ["WiFi_2.4GHz", "ISM_868", "ISM_433"]
+    outputs:
+      - inventaire_initial
+
+  # Phase 3: Balayage fin par bande
+  - module: "cartographie.balayage_fin"
+    description: "Balayage détaillé de chaque bande"
+    params:
+      mode: "precis"
+      duree_par_bande_min: 10
+      repetitions: 3
+    depends_on: ["inventaire_initial"]
+    outputs:
+      - signaux_detailles
+
+  # Phase 4: Localisation des émetteurs
+  - module: "cartographie.localisation"
+    description: "Localisation spatiale de chaque émetteur"
+    params:
+      methode: "hybride"
+      nb_captures_par_emetteur: 10
+      intervalle_capture_sec: 5
+    depends_on: ["signaux_detailles"]
+    outputs:
+      - positions_emetteurs
+
+  # Phase 5: Caractérisation approfondie
+  - module: "cartographie.caracterisation"
+    description: "Analyse détaillée de chaque signal"
+    params:
+      analyser_modulation: true
+      calculer_empreinte_phy: true
+      identifier_protocoles: true
+      mesurer_periodicite: true
+    depends_on: ["positions_emetteurs"]
+    outputs:
+      - caracterisation_complete
+
+  # Phase 6: Évaluation des menaces
+  - module: "cartographie.evaluation_menaces"
+    description: "Classification des menaces potentielles"
+    params:
+      seuil_alerte: 60
+      generer_alertes: true
+      classifier_affiliations: true
+    depends_on: ["caracterisation_complete"]
+    outputs:
+      - carte_menaces
+
+  # Phase 7: Génération du rapport
+  - module: "cartographie.rapport"
+    description: "Génération du rapport classifié"
+    params:
+      format: "pdf"
+      inclure_recommandations: true
+      inclure_carte_thermique: true
+      inclure_spectrogrammes: true
+    depends_on: ["carte_menaces"]
+    outputs:
+      - rapport_final
+
+# Critères de succès
+success_criteria:
+  - "Tous les émetteurs actifs identifiés"
+  - "Localisation avec incertitude < 20m"
+  - "Classification de tous les types de signaux"
+  - "Rapport PDF généré avec carte des menaces"
+  - "Aucune fuite RF hors cage de Faraday"
+
+# Post-actions
+post_actions:
+  - action: "archiver_donnees"
+    params:
+      destination: "/var/lib/srt/archives/cartographie/"
+      chiffrement: "AES-256"
+      retention: "permanent"
+
+  - action: "notifier_operateur"
+    params:
+      canal: "mqtt"
+      topic: "srt/cartographie/rapport_ready"

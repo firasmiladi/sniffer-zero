@@ -1,0 +1,47 @@
+# Full Passive WiFi Reconnaissance
+#
+# Usage:
+#   srt scenario scenarios/recon_wifi_complete.yaml
+#
+# Complete passive WiFi audit: channel scanning, probe fingerprinting,
+# security assessment, signal analysis, and timing analysis.
+# All modules are PASSIVE risk - no active transmission.
+
+name: recon_wifi_complete
+description: >
+  Full passive WiFi reconnaissance covering all channels (1-13).
+  Captures beacons, probe requests, data frames for fingerprinting,
+  security posture assessment, signal strength mapping, and timing
+  anomaly detection. No active transmission or deauthentication.
+
+options:
+  bail_on_fail: false
+  loop: false
+  report_format:
+    - json
+    - markdown
+
+steps:
+  - module: wifi.recon
+    id: wifi_scan
+    params:
+      duration_s: 120
+      channels: "1-13"
+
+  - module: wifi.probe_fingerprinter
+    id: wifi_probes
+    params: {}
+
+  - module: wifi.security_assessor
+    id: wifi_security
+    params: {}
+
+  - module: wifi.signal_analyzer
+    id: wifi_signal
+    params:
+      analysis_window_s: 120
+
+  - module: wifi.timing_analyzer
+    id: wifi_timing
+    params:
+      analysis_window_s: 120

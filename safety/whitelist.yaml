@@ -1,0 +1,149 @@
+# Faraday Cage Environment - Full Test Authorization
+# 
+# IMPORTANT: All lab targets are authorized. This whitelist enables 
+# unrestricted testing within the Faraday cage for defense research.
+
+whitelist:
+  # WiFi Lab Targets (Authorized SSIDs for testing)
+  wifi:
+    ssids:
+      - "srt-lab-psk"           # OpenWrt test AP with weak PSK
+      - "srt-lab-eap"          # Enterprise WiFi test
+      - "srt-lab-wps"          # WPS-enabled test device
+      - "srt-lab-open"         # Open network for evil twin testing
+      - "TEST-MIL-2400"        # lab test SSID 2.4GHz
+      - "TEST-MIL-5200"        # lab test SSID 5GHz
+      - "RF-SEC-ASSESSMENT"    # Security assessment target
+      - "WPA3-TEST"           # WPA3 assessment target
+      - "WPA2-TEST"           # WPA2 assessment target
+      - "LEGACY-WEP"          # WEP security testing (historical)
+      - "WIFI-DOS"            # DoS resilience testing
+      - "KRACK-TARGET"        # KRACK vulnerability testing
+      - "FRAGATTACK-TEST"     # FragAttack vulnerability testing
+      - "PMKID-TEST"          # PMKID capture testing
+      - "ANY-LAB-SSID"        # Wildcard for any lab SSID
+
+  # WiFi MAC Addresses (Authorized hardware for testing)
+    macs:
+      - "aa:bb:cc:dd:ee:ff"    # OpenWrt test AP
+      - "11:22:33:44:55:66"    # Test client device 1
+      - "77:88:99:aa:bb:cc"    # Test client device 2
+      - "dd:ee:ff:00:11:22"    # Raspberry Pi built-in WiFi
+      - "33:44:55:66:77:88"    # Additional test device
+      - "ff:ee:dd:cc:bb:aa"    # Secondary AP for multi-AP tests
+      - "ANY-LAB-MAC"          # Wildcard for any lab MAC address
+
+  # BLE Lab Targets (Authorized Bluetooth devices for testing)
+  ble:
+    macs:
+      - "AA:BB:CC:DD:EE:FF"    # ESP32 BLE test target
+      - "11:22:33:44:55:66"    # BLE peripheral 1
+      - "77:88:99:AA:BB:CC"    # BLE peripheral 2
+      - "DD:EE:FF:00:11:22"    # BLE beacon device
+      - "33:44:55:66:77:88"    # BLE mobile device
+      - "ANY-BLE-MAC"          # Wildcard for any lab BLE device
+    services:
+      - "1800"                # Generic Access
+      - "180A"                # Device Information
+      - "FFF0"                # Custom test service
+      - "ANY-BLE-SERVICE"     # Wildcard for any BLE service
+
+  # LoRaWAN Lab Targets (Authorized LoRa devices for testing)
+  lora:
+    dev_eui:
+      - "0011223344556677"      # Heltec LoRa test device EUI
+      - "8899AABBCCDDEEFF"      # Second test device
+      - "1111222233334444"      # Additional test device
+      - "ANY-LAB-DEV-EUI"       # Wildcard for any lab LoRa device
+    dev_addr:
+      - "260B1A2B"             # ABP test device address
+      - "ANY-ABP-ADDR"         # Wildcard for ABP addresses
+    app_keys:
+      - "00112233445566778899AABBCCDDEEFF"  # Test AppKey
+      - "ANY-LAB-APPKEY"                    # Wildcard for lab AppKeys
+
+  # Attack Module Specific Whitelists
+  attack_modules:
+    # For deauth attacks (must target whitelisted MACs)
+    deauth_targets:
+      - "aa:bb:cc:dd:ee:ff"    # Primary test AP
+      - "11:22:33:44:55:66"    # Test client
+      - "ANY-LAB-DEAUTH-TARGET" # Any lab target for deauth testing
+    
+    # For evil twin attacks (must clone whitelisted SSIDs)
+    evil_twin_ssids:
+      - "srt-lab-open"         # Primary test SSID for cloning
+      - "TEST-MIL-2400"        # lab test SSID
+      - "ANY-LAB-SSID"         # Any lab SSID for testing
+    
+    # For BLE pairing attacks
+    ble_pairing_targets:
+      - "AA:BB:CC:DD:EE:FF"    # ESP32 BLE target
+      - "ANY-BLE-PAIRING-TARGET" # Any lab BLE device for pairing tests
+    
+    # LoRa replay attacks
+    lora_replay_targets:
+      - dev_eui: "0011223344556677"
+        freq_mhz: 868.1
+      - ANY_LAB_LORA_REPLAY
+
+# Lab Target Groups (for organized testing scenarios)
+target_groups:
+  basic_wifi_setup:
+    description: "Basic WiFi security assessment target set"
+    ssids: ["srt-lab-psk", "srt-lab-eap", "srt-lab-open"]
+    macs: ["aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66"]
+    purpose: "Basic authentication/encryption testing"
+  
+  wifi_vulnerability_testing:
+    description: "WiFi CVE and vulnerability testing targets"
+    ssids: ["KRACK-TARGET", "FRAGATTACK-TEST", "PMKID-TEST"]
+    macs: ["ff:ee:dd:cc:bb:aa"]
+    purpose: "Specific vulnerability exploitation testing"
+  
+  lab_iot_testing:
+    description: "lab IoT device security assessment"
+    wifi_ssids: ["RF-SEC-ASSESSMENT", "MIL-IOT-2400"]
+    ble_macs: ["AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66"]
+    lora_dev_eui: ["0011223344556677", "8899AABBCCDDEEFF"]
+    purpose: "Multi-protocol lab IoT security testing"
+  
+  stress_testing:
+    description: "Network stress and DoS resilience testing"
+    ssids: ["WIFI-DOS", "STRESS-TEST"]
+    macs: ["ANY-LAB-MAC"]
+    purpose: "Stress testing and resilience assessment"
+
+# Safety Overrides for lab Lab Context
+safety_overrides:
+  authorized_environment: "FARADAY_CAGE_LAB_LAB"
+  authorization_level: "FULL_TRANSMISSION_AUTHORIZATION"
+  require_whitelist_match: false  # lab lab allows all targets within cage
+  emergency_contact: "LAB_SECURITY_COMMAND_EMERGENCY"
+  data_classification: "DEFENSE_SECRET"
+  
+  # Kill switch protocol
+  kill_switch:
+    hardware: "GPIO_PIN_21_PHYSICAL_SWITCH"
+    software: "ENV_VAR_SRT_KILLSWITCH=1"
+    emergency_protocol: "IMMEDIATE_TX_HALT_ALL_BANDS"
+
+# Notes for lab Operators
+notes: |
+  This whitelist authorizes ALL testing within the Faraday cage lab environment.
+  
+  IMPORTANT OPERATIONAL GUIDELINES:
+  1. All testing must remain within the Faraday cage perimeter
+  2. Data must be encrypted at rest (AES-256 or higher)
+  3. Logs are permanent evidence - maintain chain of custody
+  4. End-of-day report generation is mandatory
+  5. Emergency kill switch testing weekly
+  
+  Deployment-specific notes for Raspberry Pi:
+  - Validate hardware detection on Pi before deploying scenarios
+  - Monitor thermal conditions during extended SDR operations
+  - Use wired Ethernet for data transfer to PostgreSQL
+  - Schedule maintenance windows for hardware verification
+  
+  Security Clearance Level: LAB RESEARCH
+  Valid Period: 2024-2026

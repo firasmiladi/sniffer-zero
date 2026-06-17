@@ -1,0 +1,37 @@
+# Autonomous patrol scenario
+# Continuous passive monitoring on all protocols, loops indefinitely.
+#
+# Usage:
+#   srt scenario scenarios/autonomous_patrol.yaml
+#
+# This scenario runs in loop mode - it will cycle through all recon
+# modules indefinitely until interrupted with Ctrl+C. Failures do not
+# halt the patrol (bail_on_fail: false).
+
+name: autonomous_patrol
+description: >
+  Continuous passive monitoring on all protocols. Loops indefinitely through
+  WiFi, BLE, and LoRa reconnaissance modules collecting ambient RF data.
+
+options:
+  bail_on_fail: false
+  loop: true
+  loop_delay_s: 60
+
+steps:
+  - module: wifi.recon
+    id: wifi_scan
+    params:
+      duration_s: 120
+      channels: "1-13"
+
+  - module: ble.recon
+    id: ble_scan
+    params:
+      duration_s: 60
+
+  - module: lora.recon
+    id: lora_scan
+    params:
+      duration_s: 120
+      band: eu868

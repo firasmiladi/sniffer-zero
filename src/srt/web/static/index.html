@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRT - Tactical RF Platform</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <link rel="stylesheet" href="/static/css/tactical.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav id="nav-bar">
+        <div class="nav-left">
+            <span class="nav-logo">&#9881; SRT</span>
+            <span class="nav-title">TACTICAL RF PLATFORM</span>
+        </div>
+        <div class="nav-center">
+            <span id="nav-status" class="status-indicator status-disconnected">
+                <span class="status-dot"></span>
+                <span class="status-text">DISCONNECTED</span>
+            </span>
+        </div>
+        <div class="nav-right">
+            <span class="nav-stat" id="nav-emitters">
+                <span class="stat-label">EMITTERS</span>
+                <span class="stat-value" id="stat-emitters">0</span>
+            </span>
+            <span class="nav-stat" id="nav-alerts">
+                <span class="stat-label">ALERTS</span>
+                <span class="stat-value stat-alert" id="stat-alerts">0</span>
+            </span>
+            <span class="nav-stat" id="nav-modules">
+                <span class="stat-label">MODULES</span>
+                <span class="stat-value" id="stat-modules">0</span>
+            </span>
+            <button id="btn-scan" class="btn-tactical btn-scan" title="Start RF Scan">
+                &#9211; SCAN
+            </button>
+        </div>
+    </nav>
+
+    <!-- Scan Progress Bar -->
+    <div id="scan-progress-container" class="scan-progress-container" style="display:none">
+        <div class="scan-progress-fill"></div>
+        <span class="scan-progress-label">SCANNING...</span>
+    </div>
+
+    <!-- Main Layout -->
+    <div id="main-container">
+        <!-- Left Sidebar: Protocol Tabs -->
+        <aside id="sidebar-left">
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="all">ALL</button>
+                <button class="tab-btn tab-wifi" data-tab="wifi">WiFi</button>
+                <button class="tab-btn tab-ble" data-tab="ble">BLE</button>
+                <button class="tab-btn tab-lora" data-tab="lora">LoRa</button>
+            </div>
+            <div id="protocol-panel" class="protocol-panel">
+                <div id="tab-content-all" class="tab-content active">
+                    <p class="panel-placeholder">All protocol data will appear here after scan.</p>
+                </div>
+                <div id="tab-content-wifi" class="tab-content">
+                    <h3 class="panel-heading wifi-color">WiFi Networks</h3>
+                    <div id="wifi-table-container"></div>
+                </div>
+                <div id="tab-content-ble" class="tab-content">
+                    <h3 class="panel-heading ble-color">BLE Devices</h3>
+                    <div id="ble-table-container"></div>
+                </div>
+                <div id="tab-content-lora" class="tab-content">
+                    <h3 class="panel-heading lora-color">LoRa Devices</h3>
+                    <div id="lora-table-container"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Map -->
+        <main id="map-container">
+            <div id="map"></div>
+        </main>
+
+        <!-- Right Panel: Scenarios + Modules + Alerts -->
+        <aside id="sidebar-right">
+            <div class="right-panel-section">
+                <h3 class="panel-heading">SCENARIOS</h3>
+                <div id="scenarios-panel"></div>
+            </div>
+            <div class="right-panel-section">
+                <h3 class="panel-heading">MODULE LAUNCHER</h3>
+                <div class="modules-lab-reminder">&#9888; MODULES ACTIFS : ENVIRONNEMENT LAB REQUIS</div>
+                <div id="modules-panel"></div>
+            </div>
+            <div class="right-panel-section">
+                <h3 class="panel-heading">ALERT FEED</h3>
+                <div id="alerts-panel"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Bottom Panel: Spectrum / Band Occupation + Timeline -->
+    <footer id="bottom-panel">
+        <div class="bottom-panel-flex">
+            <div class="bottom-panel-section bottom-panel-bands">
+                <h3 class="panel-heading">BAND OCCUPATION</h3>
+                <div id="spectrum-panel"></div>
+            </div>
+            <div class="bottom-panel-section bottom-panel-timeline">
+                <h3 class="panel-heading">EMITTER TIMELINE</h3>
+                <div id="timeline-panel"></div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="/static/js/websocket.js"></script>
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/modules.js"></script>
+    <script src="/static/js/protocols.js"></script>
+    <script src="/static/js/alerts.js"></script>
+    <script src="/static/js/spectrum.js"></script>
+    <script src="/static/js/scenarios.js"></script>
+    <script src="/static/js/realtime.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

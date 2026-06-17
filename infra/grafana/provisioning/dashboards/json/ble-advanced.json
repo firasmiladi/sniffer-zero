@@ -1,0 +1,207 @@
+{
+  "title": "sniffer-rt - BLE Advanced Analysis",
+  "uid": "srt-ble-advanced",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Device Inventory with Security Grades",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT mr.ts AS time, d->>'device_mac' AS device, d->>'grade' AS security_grade, (d->>'unprotected_characteristics')::int AS unprotected_chars, (d->>'total_characteristics')::int AS total_chars, d->>'sensitive_exposed' AS sensitive_exposed, mr.summary AS assessment FROM module_results mr, jsonb_array_elements(artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'ble.gatt_security_assessor' AND $__timeFilter(mr.ts) ORDER BY mr.ts DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-background-solid"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "security_grade"},
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {"type": "value", "options": {"A": {"color": "green", "text": "A"}}},
+                  {"type": "value", "options": {"B": {"color": "semi-dark-green", "text": "B"}}},
+                  {"type": "value", "options": {"C": {"color": "yellow", "text": "C"}}},
+                  {"type": "value", "options": {"D": {"color": "orange", "text": "D"}}},
+                  {"type": "value", "options": {"F": {"color": "red", "text": "F"}}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "MAC Randomization Group View",
+      "gridPos": {"x": 0, "y": 8, "w": 8, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT (SELECT COUNT(DISTINCT src) FROM headers WHERE protocol = 'ble' AND $__timeFilter(ts)) AS unique_macs, COALESCE((SELECT SUM((mr.metrics->>'estimated_devices')::int) FROM module_results mr WHERE mr.module_name = 'ble.mac_randomization_tracker' AND $__timeFilter(mr.ts)), 0) AS estimated_physical_devices;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "background"
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "GATT Vulnerability Summary",
+      "gridPos": {"x": 8, "y": 8, "w": 16, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT d->>'device_mac' AS device, d->>'grade' AS grade, (d->>'unprotected_characteristics')::int AS unprotected_chars, (d->>'sensitive_exposed')::int AS sensitive_exposed, d->>'issues' AS issues FROM module_results mr, jsonb_array_elements(mr.artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'ble.gatt_security_assessor' AND mr.status = 'ok' AND (d->>'unprotected_characteristics')::int > 0 ORDER BY unprotected_chars DESC LIMIT 30;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "piechart",
+      "title": "Pairing Method Distribution",
+      "gridPos": {"x": 0, "y": 14, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT d->>'pairing_method' AS pairing_method, COUNT(*) AS device_count FROM module_results mr, jsonb_array_elements(mr.artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'ble.pairing_analyzer' AND mr.status = 'ok' AND d->>'pairing_method' IS NOT NULL GROUP BY d->>'pairing_method' ORDER BY device_count DESC;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Advertising Interval Analysis",
+      "gridPos": {"x": 8, "y": 14, "w": 16, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('10 seconds', ts) AS time, src AS metric, COUNT(*) AS value FROM headers WHERE protocol = 'ble' AND fields->>'pdu_type' = 'ADV_IND' AND $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Manufacturer Distribution",
+      "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(fields->>'manufacturer_name', fields->>'manufacturer_data', 'Unknown') AS manufacturer, COUNT(DISTINCT src) AS device_count FROM headers WHERE protocol = 'ble' AND (fields->>'manufacturer_data' IS NOT NULL OR fields->>'manufacturer_name' IS NOT NULL) AND $__timeFilter(ts) GROUP BY COALESCE(fields->>'manufacturer_name', fields->>'manufacturer_data', 'Unknown') ORDER BY device_count DESC LIMIT 20;"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 7,
+      "type": "gauge",
+      "title": "Device Proximity Estimation",
+      "gridPos": {"x": 12, "y": 22, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT src AS device, AVG(rssi_dbm) AS avg_rssi, ROUND(POWER(10, ((-40 - AVG(rssi_dbm)) / 20.0))::numeric, 1) AS estimated_distance_m FROM headers WHERE protocol = 'ble' AND rssi_dbm IS NOT NULL AND $__timeFilter(ts) GROUP BY src ORDER BY avg_rssi DESC LIMIT 10;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "min": 0,
+          "max": 50,
+          "color": {"mode": "continuous-GrYlRd"},
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 20}
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Tracker Detection",
+      "gridPos": {"x": 0, "y": 30, "w": 24, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT src AS device_mac, fields->>'manufacturer_data' AS manufacturer_data, fields->>'device_name' AS device_name, rssi_dbm AS rssi, COUNT(*) AS adv_count, MIN(ts) AS first_seen, MAX(ts) AS last_seen, CASE WHEN fields->>'manufacturer_data' LIKE '4c00%' THEN 'Apple (AirTag/FindMy)' WHEN fields->>'manufacturer_data' LIKE '0600%' THEN 'Microsoft' WHEN fields->>'manufacturer_data' LIKE 'fe00%' THEN 'Samsung SmartTag' WHEN fields->>'manufacturer_data' LIKE 'ed00%' THEN 'Tile' ELSE 'Other Tracker' END AS tracker_type FROM headers WHERE protocol = 'ble' AND fields->>'manufacturer_data' IS NOT NULL AND (fields->>'manufacturer_data' LIKE '4c00%' OR fields->>'manufacturer_data' LIKE '0600%' OR fields->>'manufacturer_data' LIKE 'fe00%' OR fields->>'manufacturer_data' LIKE 'ed00%') AND $__timeFilter(ts) GROUP BY src, fields->>'manufacturer_data', fields->>'device_name', rssi_dbm ORDER BY last_seen DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    }
+  ]
+}

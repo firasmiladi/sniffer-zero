@@ -1,0 +1,37 @@
+# Minimal ChirpStack v4 config for lab use.
+# Override / extend as needed.
+
+[logging]
+  level = "info"
+  json = false
+
+[postgresql]
+  dsn = "postgres://chirpstack:chirpstack@chirpstack-postgres/chirpstack?sslmode=disable"
+  max_open_connections = 10
+  min_idle_connections = 0
+
+[redis]
+  servers = ["redis://chirpstack-redis/"]
+
+[network]
+  net_id = "000000"
+  enabled_regions = ["eu868", "us915"]
+
+[gateway]
+  client_cert_lifetime = "12months"
+
+[integration]
+  enabled = ["mqtt"]
+
+  [integration.mqtt]
+    server = "tcp://mosquitto:1883/"
+    json = true
+    event_topic = "application/{{application_id}}/device/{{dev_eui}}/event/{{event}}"
+    command_topic = "application/{{application_id}}/device/{{dev_eui}}/command/{{command}}"
+
+[api]
+  bind = "0.0.0.0:8080"
+  secret = "change-me-in-production"
+
+[ui]
+  password_hash_iterations = 1

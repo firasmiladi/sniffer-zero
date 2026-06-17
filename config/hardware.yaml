@@ -1,0 +1,125 @@
+# Faraday Cage Environment - Full Transmission Authorization
+# Target Platform: Raspberry Pi 5 (Post-deployment), Development on PC
+
+hardware:
+  # WiFi Configuration for lab Assessment
+  wifi:
+    # ALFA AWUS036H - Compatible with AWUS036ACH variant (same chipset RTL8812AU)
+    interfaces:
+      - name: "wlan1"  # Typically ALFA adapter on USB
+        driver: "rtl8812au"
+        monitor_mode: "wlan1mon"  # Monitor mode interface
+        injection: true
+        tx_power_dbm: 30  # Max for lab lab
+        bands:
+          - 2400
+          - 5150
+          - 5470
+        chipset_notes: "ALFA AWUS036H (RTL8812AU) - Compatible with sniffer-rt requirements"
+      - name: "wlan0"  # Fallback interface for built-in WiFi (if present)
+        driver: "brcmfmac"  # Broadcom for Raspberry Pi
+        monitor_mode: false
+        injection: false
+        chipset_notes: "Built-in adapter - monitor mode limited on Pi"
+
+  # SDR Configuration (HackRF One - lab Research Grade)
+  sdr:
+    - name: "hackrf"
+      model: "HackRF One"
+      serial: "00123456789"  # Update with your serial
+      sample_rate_mhz: 20
+      frequency_min_mhz: 1
+      frequency_max_mhz: 6000
+      gain_db: 47
+      bias_tee: false
+      notes: "Primary SDR for LoRaWAN, spectrum survey, and protocol analysis"
+    
+    # Optional: Secondary SDRs
+    # - name: "rtlsdr"
+    #   model: "RTL-SDR"
+    #   notes: "Secondary receiver for wideband monitoring"
+
+  # BLE Configuration (Raspberry Pi 5 built-in Bluetooth)
+  ble:
+    - interface: "hci0"  # Raspberry Pi 5 built-in Bluetooth
+      name: "raspberrypi5-ble"
+      scan_mode: "active"
+      scan_interval_ms: 100
+      scan_window_ms: 90
+      notes: "Built-in Bluetooth 5.0 LE - native support on Pi 5"
+
+  # LoRaWAN Gateway Configuration (if applicable)
+  lora:
+    - interface: "hackrf"
+      frequency: 868100000  # EU 868.1 MHz
+      bandwidth: 125000
+      spread_factor: 7
+      coding_rate: "4/5"
+      sync_word: 0x12
+      gain: 0.7
+      notes: "LoRa reception via HackRF - setup via gr-lora"
+
+  # Faraday Cage Configuration
+  environment:
+    shielded: true  # Faraday cage perimeter enforced
+    temperature_monitor: "/dev/temp_sensor"  # Optional thermal monitoring
+    emissions_monitor: true  # RF emissions monitoring
+    kill_switch:
+      hardware: "gpio_21"  # Physical kill switch GPIO on Pi
+      software: "/proc/sys/kernel/srt_kill"  # Software kill trigger
+      emergency_timeout_ms: 1000
+
+  # Deployment Platform
+  platform:
+    primary: "pc"  # Current development platform
+    target: "raspberrypi5"  # Target deployment platform
+    
+    # Raspberry Pi 5 Specifications
+    raspberrypi5:
+      model: "Raspberry Pi 5 4GB"
+      arm_cores: 4
+      memory_gb: 4
+      storage: "512GB NVMe SSD via M.2 HAT"
+      os: "Raspberry Pi OS Lite (64-bit)"
+      kernel: "6.1.0"
+      usb_ports: 2  # ALFA (USB 3.0) + HackRF (USB 2.0) possible without hub
+      power_requirements: "5V/5A PD for stable SDR operation"
+      cooling: "Active cooling required for SDR workloads"
+      notes: "Deployment platform - test hardware compatibility before migration"
+
+  # lab Lab Specifics
+  lab:
+    facility_classification: "CLASSIFIED"
+    cage_type: "Faraday Double-Shielded"
+    emissions_containment: "Guaranteed >100dB attenuation"
+    operating_schedule: "24/7 authorized testing"
+    log_retention: "Permanent archive for all experimental data"
+
+# Hardware Verification Commands
+verification:
+  - command: "lsusb | grep -i '0bda:8812'"
+    expected: "ALFA AWUS036H detected"
+    notes: "Check ALFA adapter presence"
+  
+  - command: "hackrf_info"
+    expected: "Found HackRF One"
+    notes: "Check HackRF connectivity"
+  
+  - command: "bluetoothctl show"
+    expected: "Controller hci0"
+    notes: "Check BLE capability"
+  
+  - command: "iwconfig wlan1mon"
+    expected: "Mode:Monitor"
+    notes: "Verify monitor mode active on ALFA"
+
+# Deployment Notes
+notes: |
+  Deployment to Raspberry Pi 5 requires:
+  1. Hardware compatibility testing on Pi before full migration
+  2. USB power management - powered hub may be needed for ALFA+HackRF combo
+  3. Thermal monitoring - SDR workloads heat the Pi significantly
+  4. Storage performance - NVMe recommended for capture file storage
+  5. Network configuration - Ethernet for reliable data transfer to TimescaleDB
+  
+  Faraday cage operations: Ensure all cables are shielded, no RF leakage points.

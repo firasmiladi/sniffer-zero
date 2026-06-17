@@ -1,0 +1,31 @@
+# BLE full audit scenario
+# Chains: recon → GATT enum → pairing capture + crack → MITM
+#
+# Usage:
+#   srt scenario scenarios/ble_full_audit.yaml
+#
+# Requires:
+#   - BLE adapter (hci0) or Ubertooth
+#   - Target MAC in safety/whitelist.yaml
+
+name: ble_full_audit
+description: >
+  End-to-end BLE audit: discover peripherals, enumerate GATT, capture
+  Just-Works pairing, crack LTK, then relay MITM.
+
+steps:
+  - module: ble.recon
+    params:
+      duration_s: 20
+
+  - module: ble.gatt_enum
+    params:
+      target_mac: "DE:AD:BE:EF:00:01"   # ← replace with lab target
+
+  - module: ble.pair_capture
+    params:
+      target_mac: "DE:AD:BE:EF:00:01"
+
+  - module: ble.gattacker_mitm
+    params:
+      target_mac: "DE:AD:BE:EF:00:01"

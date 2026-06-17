@@ -1,0 +1,71 @@
+# Spectral Survey - Continuous ISM Band Monitoring with HackRF
+#
+# Usage:
+#   srt scenario scenarios/survey_spectral.yaml
+#
+# Full spectrum sweep across all ISM bands using HackRF One's
+# hackrf_sweep mode, complemented by protocol-specific passive scans.
+# All modules are PASSIVE risk - receive only, no transmission.
+
+name: survey_spectral
+description: >
+  Continuous spectral survey across all ISM bands using HackRF One.
+  Performs wideband spectrum sweeps followed by protocol-specific
+  passive scans. Ideal for spectrum occupancy mapping, detecting
+  transient emitters, and building RF environment awareness.
+  Receive-only operation.
+
+options:
+  bail_on_fail: false
+  loop: true
+  loop_delay_s: 10
+  report_format:
+    - json
+
+steps:
+  - module: spectrum.sweep
+    id: hackrf_full_sweep
+    params:
+      freq_start_mhz: 2400
+      freq_end_mhz: 2500
+      bin_width_hz: 1000000
+      duration_s: 10
+      lna_gain: 32
+      vga_gain: 20
+
+  - module: spectrum.sweep
+    id: hackrf_868_sweep
+    params:
+      freq_start_mhz: 863
+      freq_end_mhz: 870
+      bin_width_hz: 500000
+      duration_s: 5
+      lna_gain: 32
+      vga_gain: 20
+
+  - module: spectrum.sweep
+    id: hackrf_433_sweep
+    params:
+      freq_start_mhz: 433
+      freq_end_mhz: 435
+      bin_width_hz: 500000
+      duration_s: 5
+      lna_gain: 32
+      vga_gain: 20
+
+  - module: wifi.recon
+    id: wifi_sweep
+    params:
+      duration_s: 30
+      channels: "1-13"
+
+  - module: ble.recon
+    id: ble_sweep
+    params:
+      duration_s: 30
+
+  - module: lora.recon
+    id: lora_sweep
+    params:
+      duration_s: 30
+      band: eu868

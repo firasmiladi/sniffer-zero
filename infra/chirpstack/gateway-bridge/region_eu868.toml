@@ -1,0 +1,39 @@
+# chirpstack-gateway-bridge — région EU868
+#
+# Rôle : recevoir les paquets de la passerelle LoRa Dragino LG308N via le
+# protocole Semtech UDP (packet forwarder, UDP/1700) et les republier sur le
+# broker MQTT, où ChirpStack v4 les consomme.
+#
+# Côté Dragino LG308N : sélectionner le mode "Semtech UDP / Packet Forwarder",
+# Server Address = IP de l'hôte Docker, Server Port (up/down) = 1700.
+#
+# Monté dans le conteneur via :
+#   volumes:
+#     - ./chirpstack/gateway-bridge:/etc/chirpstack-gateway-bridge:ro
+
+[backend]
+  type = "semtech_udp"
+
+  [backend.semtech_udp]
+    # Adresse/port d'écoute UDP pour le packet forwarder de la passerelle.
+    udp_bind = "0.0.0.0:1700"
+    # Fake RX/TX acknowledgements pour les anciens forwarders, si nécessaire.
+    fake_rx_time = false
+
+[integration]
+  marshaler = "protobuf"
+
+  [integration.mqtt]
+    event_topic_template   = "eu868/gateway/{{ .GatewayID }}/event/{{ .EventType }}"
+    state_topic_template   = "eu868/gateway/{{ .GatewayID }}/state/{{ .StateType }}"
+    command_topic_template = "eu868/gateway/{{ .GatewayID }}/command/#"
+
+    [integration.mqtt.auth]
+      type = "generic"
+
+      [integration.mqtt.auth.generic]
+        servers = ["tcp://mosquitto:1883"]
+        clean_session = false
+        # username / password vides en lab (broker local sans auth).
+        username = ""
+        password = ""

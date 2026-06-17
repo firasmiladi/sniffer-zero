@@ -1,0 +1,133 @@
+# Full Deep Audit - All protocols combined in one comprehensive run
+#
+# Usage:
+#   srt scenario scenarios/full_deep_audit.yaml
+#
+# The "one-click audit everything" scenario. Runs WiFi, BLE, and LoRaWAN
+# deep audits sequentially, then performs cross-protocol correlation.
+#
+# Requires:
+#   - ALFA adapter (monitor mode)
+#   - BLE adapter (hci0)
+#   - HackRF
+#   - Targets in safety/whitelist.yaml
+
+name: full_deep_audit
+description: >
+  One-click comprehensive audit of all ISM-band protocols. Executes WiFi deep
+  audit, BLE deep audit, and LoRaWAN deep audit sequentially, then runs
+  cross-protocol correlation to identify devices visible across multiple
+  protocols. Generates unified report with MITRE ATT&CK mapping.
+
+variables:
+  wifi_interface: "wlan0mon"
+  wifi_target_bssid: "AA:BB:CC:DD:EE:FF"
+  wifi_target_channel: "6"
+  ble_target_mac: "DE:AD:BE:EF:00:01"
+  lora_target_devaddr: "01020304"
+  wordlist: "/usr/share/wordlists/rockyou.txt"
+
+options:
+  bail_on_fail: false
+  loop: false
+  report_format:
+    - json
+    - markdown
+    - pdf
+
+steps:
+  # --- WiFi Phase ---
+  - module: wifi.recon
+    id: wifi_recon
+    params:
+      duration_s: 30
+      channels: "1-13"
+      interface: "{{wifi_interface}}"
+
+  - module: wifi.frame_dissector
+    id: wifi_dissect
+    params:
+      duration_s: 15
+      interface: "{{wifi_interface}}"
+
+  - module: wifi.timing_analyzer
+    id: wifi_timing
+    params:
+      analysis_window_s: 30
+
+  - module: wifi.security_assessor
+    id: wifi_security
+    params: {}
+
+  - module: wifi.probe_fingerprinter
+    id: wifi_fingerprint
+    params: {}
+
+  - module: wifi.deauth
+    params:
+      bssid: "{{wifi_target_bssid}}"
+      client: "FF:FF:FF:FF:FF:FF"
+      count: 10
+      channel: "{{wifi_target_channel}}"
+
+  - module: wifi.handshake_capture
+    params:
+      bssid: "{{wifi_target_bssid}}"
+      channel: "{{wifi_target_channel}}"
+
+  - module: wifi.pmkid
+    params:
+      bssid: "{{wifi_target_bssid}}"
+      timeout_s: 30
+
+  # --- BLE Phase ---
+  - module: ble.recon
+    id: ble_recon
+    params:
+      duration_s: 20
+
+  - module: ble.gatt_enum
+    id: ble_gatt
+    params:
+      target_mac: "{{ble_target_mac}}"
+
+  - module: ble.gatt_security_assessor
+    id: ble_security
+    params:
+      target_mac: "{{ble_target_mac}}"
+
+  - module: ble.pairing_analyzer
+    id: ble_pairing
+    params:
+      target_mac: "{{ble_target_mac}}"
+
+  - module: ble.mac_randomization_tracker
+    id: ble_mac_track
+    params:
+      analysis_window_s: 30
+
+  # --- LoRaWAN Phase ---
+  - module: lora.recon
+    id: lora_capture
+    params:
+      duration_s: 60
+      band: eu868
+      sf: 7
+
+  - module: lora.frame_decoder
+    id: lora_decode
+    params: {}
+
+  - module: lora.anomaly_detector
+    id: lora_anomaly
+    params:
+      analysis_window_s: 120
+
+  - module: lora.traffic_profiler
+    id: lora_profile
+    params: {}
+
+  # --- Signal Analysis ---
+  - module: wifi.signal_analyzer
+    id: wifi_signal
+    params: {}

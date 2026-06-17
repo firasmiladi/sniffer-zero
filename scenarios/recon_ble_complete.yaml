@@ -1,0 +1,37 @@
+# Full Passive BLE Reconnaissance
+#
+# Usage:
+#   srt scenario scenarios/recon_ble_complete.yaml
+#
+# Complete passive BLE audit: device scanning, protocol analysis,
+# and MAC address randomization tracking.
+# All modules are PASSIVE risk - no active transmission.
+
+name: recon_ble_complete
+description: >
+  Full passive BLE reconnaissance. Scans for BLE advertisements,
+  analyzes protocol characteristics, and tracks MAC address
+  randomization patterns to identify unique devices.
+  No active connections or GATT enumeration.
+
+options:
+  bail_on_fail: false
+  loop: false
+  report_format:
+    - json
+    - markdown
+
+steps:
+  - module: ble.recon
+    id: ble_scan
+    params:
+      duration_s: 90
+
+  - module: ble.protocol_analyzer
+    id: ble_protocol
+    params: {}
+
+  - module: ble.mac_randomization_tracker
+    id: ble_mac_track
+    params:
+      analysis_window_s: 90

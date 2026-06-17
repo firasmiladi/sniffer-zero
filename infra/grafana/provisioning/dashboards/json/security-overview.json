@@ -1,0 +1,186 @@
+{
+  "title": "sniffer-rt - Security Overview",
+  "uid": "srt-security-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Overall Security Posture",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ROUND(100.0 * (1.0 - COALESCE((SELECT COUNT(*)::float FROM module_results WHERE status = 'ok' AND (COALESCE((metrics->>'total_issues')::int, 0) + COALESCE((metrics->>'total_anomalies')::int, 0)) > 0 AND $__timeFilter(ts)), 0) / GREATEST((SELECT COUNT(DISTINCT src)::float FROM headers WHERE $__timeFilter(ts)), 1)), 1) AS security_score;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 40},
+              {"color": "yellow", "value": 70},
+              {"color": "green", "value": 90}
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Critical Vulnerabilities",
+      "gridPos": {"x": 6, "y": 0, "w": 18, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT mr.ts AS time, mr.module_name AS module, COALESCE(mr.metrics->>'bssid', mr.metrics->>'device_mac', 'N/A') AS device, CASE WHEN COALESCE((mr.metrics->>'total_issues')::int, 0) > 5 THEN 'critical' WHEN COALESCE((mr.metrics->>'total_issues')::int, 0) > 2 THEN 'high' WHEN COALESCE((mr.metrics->>'total_issues')::int, (mr.metrics->>'total_anomalies')::int, 0) > 0 THEN 'medium' ELSE 'low' END AS severity, mr.summary AS description FROM module_results mr WHERE mr.status = 'ok' AND (COALESCE((mr.metrics->>'total_issues')::int, 0) + COALESCE((mr.metrics->>'total_anomalies')::int, 0)) > 0 AND $__timeFilter(mr.ts) ORDER BY mr.ts DESC LIMIT 50;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "severity"},
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {"type": "value", "options": {"critical": {"color": "red", "text": "CRITICAL"}}},
+                  {"type": "value", "options": {"high": {"color": "orange", "text": "HIGH"}}},
+                  {"type": "value", "options": {"medium": {"color": "yellow", "text": "MEDIUM"}}},
+                  {"type": "value", "options": {"low": {"color": "blue", "text": "LOW"}}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "MITRE ATT&CK Coverage",
+      "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT DISTINCT mr.metrics->>'mitre_ttp' AS technique_id, mr.module_name AS detected_by, COUNT(*) AS trigger_count, MAX(mr.ts) AS last_triggered FROM module_results mr WHERE mr.metrics->>'mitre_ttp' IS NOT NULL AND $__timeFilter(mr.ts) GROUP BY mr.metrics->>'mitre_ttp', mr.module_name ORDER BY trigger_count DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "alertlist",
+      "title": "Active Alerts",
+      "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "options": {
+        "maxItems": 20,
+        "sortOrder": 1,
+        "alertName": "",
+        "dashboardAlerts": false,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": false,
+          "normal": false,
+          "error": true
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Protocol Breakdown",
+      "gridPos": {"x": 0, "y": 14, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT SPLIT_PART(mr.module_name, '.', 1) AS protocol, COUNT(*) AS finding_count FROM module_results mr WHERE mr.status = 'ok' AND (COALESCE((mr.metrics->>'total_issues')::int, 0) + COALESCE((mr.metrics->>'total_anomalies')::int, 0)) > 0 AND $__timeFilter(mr.ts) GROUP BY SPLIT_PART(mr.module_name, '.', 1) ORDER BY finding_count DESC;"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Discovery Timeline",
+      "gridPos": {"x": 12, "y": 14, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('5 minutes', first_seen) AS time, protocol AS metric, COUNT(*) AS value FROM (SELECT src, protocol, MIN(ts) AS first_seen FROM headers WHERE $__timeFilter(ts) GROUP BY src, protocol) sub GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "stacking": {"mode": "normal"}
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Top Vulnerable Devices",
+      "gridPos": {"x": 0, "y": 22, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(mr.metrics->>'bssid', mr.metrics->>'device_mac', 'unknown') AS device, SPLIT_PART(mr.module_name, '.', 1) AS protocol, COUNT(DISTINCT mr.module_name) AS modules_flagged, SUM(COALESCE((mr.metrics->>'total_issues')::int, (mr.metrics->>'total_anomalies')::int, 1)) AS total_findings, ARRAY_AGG(DISTINCT mr.module_name) AS modules, MAX(mr.ts) AS last_assessment FROM module_results mr WHERE mr.status = 'ok' AND (COALESCE(mr.metrics->>'bssid', mr.metrics->>'device_mac') IS NOT NULL) AND (COALESCE((mr.metrics->>'total_issues')::int, 0) + COALESCE((mr.metrics->>'total_anomalies')::int, 0)) > 0 AND $__timeFilter(mr.ts) GROUP BY COALESCE(mr.metrics->>'bssid', mr.metrics->>'device_mac', 'unknown'), SPLIT_PART(mr.module_name, '.', 1) ORDER BY total_findings DESC LIMIT 20;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    }
+  ]
+}

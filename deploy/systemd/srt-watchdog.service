@@ -1,0 +1,13 @@
+[Unit]
+Description=sniffer-rt hardware watchdog
+After=srt-probe.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/sniffer/scripts/watchdog.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

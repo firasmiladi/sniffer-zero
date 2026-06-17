@@ -1,0 +1,111 @@
+{
+  "title": "sniffer-rt - Overview",
+  "uid": "srt-overview",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Frames Captured",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 10000},
+              {"color": "red", "value": 100000}
+            ]
+          }
+        }
+      },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(*) AS value FROM headers WHERE ts > NOW() - INTERVAL '1 hour';"
+      }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active Sessions",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(*) AS value FROM sessions WHERE ended_at IS NULL;"
+      }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unique Devices (1h)",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(DISTINCT src) AS value FROM headers WHERE ts > NOW() - INTERVAL '1 hour';"
+      }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Protocols Active",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(DISTINCT protocol) AS value FROM headers WHERE ts > NOW() - INTERVAL '1 hour';"
+      }]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Frames per Protocol",
+      "description": "Frame rate by protocol using continuous aggregate",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          }
+        }
+      },
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT bucket AS time, protocol AS metric, frames_per_min AS value FROM mv_protocol_rates WHERE $__timeFilter(bucket) ORDER BY bucket;"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Recently Seen Devices",
+      "description": "Devices active in the last 24 hours",
+      "gridPos": {"x": 0, "y": 12, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT protocol, identifier, frames, first_seen, last_seen, ROUND(avg_rssi::numeric, 1) AS avg_rssi FROM v_recent_devices LIMIT 100;"
+      }]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Flow Matrix",
+      "description": "Source-to-destination communication pairs (last hour)",
+      "gridPos": {"x": 0, "y": 20, "w": 24, "h": 10},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT protocol, source, destination, frame_count, first_seen, last_seen, ROUND(avg_rssi::numeric, 1) AS avg_rssi, channels_used, ssids, frame_types FROM v_flow_matrix LIMIT 200;"
+      }]
+    }
+  ]
+}

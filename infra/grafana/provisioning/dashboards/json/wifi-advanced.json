@@ -1,0 +1,238 @@
+{
+  "title": "sniffer-rt - WiFi Advanced Analysis",
+  "uid": "srt-wifi-advanced",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "AP Security Grade Heatmap",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT mr.ts AS time, d->>'bssid' AS bssid, d->>'ssid' AS ssid, d->>'grade' AS grade, d->>'encryption' AS encryption, d->>'pmf' AS pmf, d->>'wps_enabled' AS wps, mr.summary AS details FROM module_results mr, jsonb_array_elements(artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'wifi.security_assessor' AND $__timeFilter(mr.ts) ORDER BY mr.ts DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-background-solid"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "grade"},
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {"type": "value", "options": {"A": {"color": "green", "text": "A"}}},
+                  {"type": "value", "options": {"B": {"color": "semi-dark-green", "text": "B"}}},
+                  {"type": "value", "options": {"C": {"color": "yellow", "text": "C"}}},
+                  {"type": "value", "options": {"D": {"color": "orange", "text": "D"}}},
+                  {"type": "value", "options": {"F": {"color": "red", "text": "F"}}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Probe Request Timeline",
+      "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('30 seconds', ts) AS time, COALESCE(fields->>'ssid', '<broadcast>') AS metric, COUNT(*) AS value FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'probe_request' AND $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {"mode": "normal"}
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["sum"]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Client Fingerprint Table",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT d.key AS mac, d.value->>'device_type' AS device_type, d.value->>'os_family' AS os_family, (d.value->>'probe_count')::int AS probe_count, d.value->>'grouped_macs' AS grouped_macs FROM module_results mr, jsonb_each(mr.artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'wifi.probe_fingerprinter' AND mr.status = 'ok' ORDER BY probe_count DESC LIMIT 50;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Deauth Event Timeline",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('1 minute', ts) AS time, src AS metric, COUNT(*) AS value FROM headers WHERE protocol = 'wifi' AND fields->>'subtype' = '12' AND $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "drawStyle": "bars"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Channel Utilization",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT channel::text AS channel, COUNT(*) AS frame_count FROM headers WHERE protocol = 'wifi' AND channel IS NOT NULL AND $__timeFilter(ts) GROUP BY channel ORDER BY channel;"
+      }],
+      "options": {
+        "orientation": "vertical",
+        "showValue": "always",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 6,
+      "type": "heatmap",
+      "title": "Signal Strength Heatmap",
+      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('1 minute', ts) AS time, rssi_dbm AS value FROM headers WHERE protocol = 'wifi' AND rssi_dbm IS NOT NULL AND $__timeFilter(ts) ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm"
+        }
+      },
+      "options": {
+        "calculate": true,
+        "calculation": {
+          "xBuckets": {"mode": "size", "value": "1m"},
+          "yBuckets": {"mode": "size", "value": "5"}
+        },
+        "color": {
+          "mode": "scheme",
+          "scheme": "RdYlGn"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Encryption Distribution",
+      "gridPos": {"x": 0, "y": 32, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(fields->>'encryption', 'OPEN') AS encryption_type, COUNT(DISTINCT src) AS ap_count FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'beacon' AND $__timeFilter(ts) GROUP BY fields->>'encryption' ORDER BY ap_count DESC;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Top Talkers",
+      "gridPos": {"x": 8, "y": 32, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT src AS mac, COUNT(*) AS frame_count, COUNT(DISTINCT dst) AS unique_destinations, MIN(ts) AS first_seen, MAX(ts) AS last_seen FROM headers WHERE protocol = 'wifi' AND $__timeFilter(ts) GROUP BY src ORDER BY frame_count DESC LIMIT 20;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Rogue AP Detection",
+      "gridPos": {"x": 16, "y": 32, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT fields->>'ssid' AS ssid, COUNT(DISTINCT src) AS bssid_count, ARRAY_AGG(DISTINCT src) AS bssids, ARRAY_AGG(DISTINCT channel::text) AS channels FROM headers WHERE protocol = 'wifi' AND fields->>'ssid' IS NOT NULL AND fields->>'frame_type' = 'beacon' AND $__timeFilter(ts) GROUP BY fields->>'ssid' HAVING COUNT(DISTINCT src) > 1 ORDER BY bssid_count DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "WPS-Enabled AP Alert",
+      "gridPos": {"x": 0, "y": 40, "w": 24, "h": 6},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT DISTINCT src AS bssid, fields->>'ssid' AS ssid, channel, rssi_dbm AS rssi, fields->>'encryption' AS encryption, MAX(ts) AS last_seen FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'beacon' AND (fields->>'wps_enabled' = 'true' OR fields->>'wps' IS NOT NULL) AND $__timeFilter(ts) GROUP BY src, fields->>'ssid', channel, rssi_dbm, fields->>'encryption' ORDER BY last_seen DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    }
+  ]
+}

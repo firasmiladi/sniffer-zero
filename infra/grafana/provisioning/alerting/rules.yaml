@@ -1,0 +1,212 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: sniffer-rt-alerts
+    folder: sniffer-rt
+    interval: 10s
+    rules:
+      - uid: srt-alert-new-device
+        title: New Device Not In Whitelist
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM headers
+                WHERE ts > NOW() - INTERVAL '5 minutes'
+                  AND src NOT IN (
+                    SELECT identifier FROM v_recent_devices
+                    WHERE first_seen < NOW() - INTERVAL '1 hour'
+                  )
+              format: table
+        for: 1m
+        labels:
+          severity: warning
+          category: discovery
+        annotations:
+          summary: "New device detected that was not previously seen"
+          description: "A device has appeared in the last 5 minutes that was not active in the previous hour. Verify against whitelist."
+
+      - uid: srt-alert-deauth-flood
+        title: Deauth Flood Detected
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM headers
+                WHERE ts > NOW() - INTERVAL '10 seconds'
+                  AND protocol = 'wifi'
+                  AND fields->>'subtype' = 'deauth'
+                HAVING COUNT(*) > 20
+              format: table
+        for: 0s
+        labels:
+          severity: critical
+          category: denial_of_service
+        annotations:
+          summary: "Deauthentication flood detected"
+          description: "More than 20 deauthentication frames observed in a 10-second window. Possible DoS attack in progress."
+
+      - uid: srt-alert-fcnt-rollback
+        title: LoRaWAN FCnt Rollback
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM (
+                  SELECT src,
+                         (fields->>'fcnt')::int AS fcnt,
+                         LAG((fields->>'fcnt')::int) OVER (PARTITION BY src ORDER BY ts) AS prev_fcnt
+                  FROM headers
+                  WHERE protocol = 'lora'
+                    AND ts > NOW() - INTERVAL '5 minutes'
+                    AND fields->>'fcnt' IS NOT NULL
+                ) sub
+                WHERE fcnt < prev_fcnt
+              format: table
+        for: 0s
+        labels:
+          severity: critical
+          category: replay_attack
+        annotations:
+          summary: "LoRaWAN frame counter rollback detected"
+          description: "A LoRaWAN device frame counter decreased, indicating a possible replay attack or ABP device reset."
+
+      - uid: srt-alert-devnonce-reuse
+        title: LoRaWAN DevNonce Reuse
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM (
+                  SELECT src, fields->>'dev_nonce' AS dev_nonce
+                  FROM headers
+                  WHERE protocol = 'lora'
+                    AND fields->>'mtype' = 'JoinRequest'
+                    AND ts > NOW() - INTERVAL '1 hour'
+                  GROUP BY src, fields->>'dev_nonce'
+                  HAVING COUNT(*) > 1
+                ) sub
+              format: table
+        for: 30s
+        labels:
+          severity: warning
+          category: replay_attack
+        annotations:
+          summary: "LoRaWAN DevNonce reuse detected"
+          description: "A JoinRequest with a previously used DevNonce was observed. This may indicate a join replay attack."
+
+      - uid: srt-alert-rogue-ap
+        title: Rogue AP SSID Clone
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM (
+                  SELECT fields->>'ssid' AS ssid, COUNT(DISTINCT src) AS bssid_count
+                  FROM headers
+                  WHERE protocol = 'wifi'
+                    AND fields->>'ssid' IS NOT NULL
+                    AND ts > NOW() - INTERVAL '10 minutes'
+                  GROUP BY fields->>'ssid'
+                  HAVING COUNT(DISTINCT src) > 1
+                ) sub
+              format: table
+        for: 30s
+        labels:
+          severity: critical
+          category: evil_twin
+        annotations:
+          summary: "Possible rogue AP with cloned SSID detected"
+          description: "Multiple BSSIDs broadcasting the same SSID. This may indicate an Evil Twin attack."
+
+      - uid: srt-alert-ble-unprotected
+        title: BLE Unprotected Sensitive Characteristic
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM module_results
+                WHERE module_name = 'ble.gatt_security_assessor'
+                  AND ts > NOW() - INTERVAL '5 minutes'
+                  AND (metrics->>'total_issues')::int > 0
+              format: table
+        for: 1m
+        labels:
+          severity: warning
+          category: ble_security
+        annotations:
+          summary: "BLE device with unprotected sensitive characteristic detected"
+          description: "A BLE device was found exposing sensitive GATT characteristics (battery, device info, health data) without encryption or authentication requirements."
+
+      - uid: srt-alert-signal-anomaly
+        title: Signal Anomaly Detected
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM (
+                  SELECT src, rssi_dbm,
+                         AVG(rssi_dbm) OVER (PARTITION BY src ORDER BY ts ROWS BETWEEN 10 PRECEDING AND 1 PRECEDING) AS avg_rssi
+                  FROM headers
+                  WHERE ts > NOW() - INTERVAL '1 minute'
+                    AND rssi_dbm IS NOT NULL
+                ) sub
+                WHERE ABS(rssi_dbm - avg_rssi) > 20
+              format: table
+        for: 0s
+        labels:
+          severity: warning
+          category: signal_anomaly
+        annotations:
+          summary: "Significant signal strength anomaly detected"
+          description: "A device signal strength deviated more than 20 dB from its recent average within 1 minute. This may indicate a spoofed device or relay attack."
+
+      - uid: srt-alert-lora-replay
+        title: LoRaWAN Replay Attack Detected
+        condition: A
+        data:
+          - refId: A
+            datasourceUid: TimescaleDB
+            model:
+              rawSql: |
+                SELECT COUNT(*) AS value
+                FROM (
+                  SELECT src, fields->>'fcnt' AS fcnt, fields->>'mic' AS mic
+                  FROM headers
+                  WHERE protocol = 'lora'
+                    AND ts > NOW() - INTERVAL '5 minutes'
+                    AND fields->>'fcnt' IS NOT NULL
+                    AND fields->>'mic' IS NOT NULL
+                  GROUP BY src, fields->>'fcnt', fields->>'mic'
+                  HAVING COUNT(*) > 1
+                ) sub
+              format: table
+        for: 0s
+        labels:
+          severity: critical
+          category: replay_attack
+        annotations:
+          summary: "LoRaWAN replay attack detected"
+          description: "Duplicate LoRaWAN frames with identical source, frame counter, and MIC detected. This is a strong indicator of an active replay attack."

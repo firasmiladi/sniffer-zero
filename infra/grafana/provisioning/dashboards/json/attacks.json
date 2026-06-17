@@ -1,0 +1,120 @@
+{
+  "title": "sniffer-rt - Attack Results",
+  "uid": "srt-attacks",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Module Executions",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(*) AS value FROM module_results;"
+      }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Secrets Captured",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed", "fixedColor": "orange"}
+        }
+      },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(*) AS value FROM secrets;"
+      }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Success Rate",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'ok')::float / COUNT(*) ELSE 0 END AS value FROM module_results;"
+      }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Unique MITRE Techniques",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COUNT(DISTINCT ttp) AS value FROM module_results, unnest(mitre_ttp) AS ttp;"
+      }]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Module Execution Log",
+      "description": "Recent module runs with status and timing",
+      "gridPos": {"x": 0, "y": 4, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT module_name, protocol, status, risk, started_at, ended_at, EXTRACT(EPOCH FROM (ended_at - started_at))::int AS duration_sec, summary FROM module_results ORDER BY started_at DESC LIMIT 50;"
+      }]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Success / Failure Rate by Module",
+      "description": "Execution outcomes grouped by module",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "stacking": {"mode": "normal"}
+          }
+        }
+      },
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT module_name, COUNT(*) FILTER (WHERE status = 'ok') AS success, COUNT(*) FILTER (WHERE status = 'fail') AS failure, COUNT(*) FILTER (WHERE status = 'aborted') AS aborted, COUNT(*) FILTER (WHERE status = 'refused') AS refused FROM module_results GROUP BY module_name ORDER BY module_name;"
+      }]
+    },
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Risk Distribution",
+      "description": "Module results by risk level",
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT risk AS label, COUNT(*) AS value FROM module_results GROUP BY risk ORDER BY value DESC;"
+      }]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "MITRE ATT&CK Coverage",
+      "description": "Techniques tested and their outcomes",
+      "gridPos": {"x": 0, "y": 20, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ttp AS technique_id, COUNT(*) AS times_tested, COUNT(*) FILTER (WHERE status = 'ok') AS successful, COUNT(*) FILTER (WHERE status = 'fail') AS failed, array_agg(DISTINCT module_name) AS modules FROM module_results, unnest(mitre_ttp) AS ttp GROUP BY ttp ORDER BY times_tested DESC;"
+      }]
+    }
+  ]
+}

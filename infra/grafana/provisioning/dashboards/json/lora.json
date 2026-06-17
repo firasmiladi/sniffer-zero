@@ -1,0 +1,139 @@
+{
+  "title": "sniffer-rt - LoRaWAN Deep-Dive",
+  "uid": "srt-lora",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Active LoRa Devices",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT src AS dev_addr, MIN((fields->>'fcnt')::int) AS fcnt_min, MAX((fields->>'fcnt')::int) AS fcnt_max, MAX(ts) AS last_seen, COUNT(*) AS frame_count, AVG(rssi_dbm) AS avg_rssi FROM headers WHERE protocol = 'lora' AND fields->>'mtype' IN ('UnconfDataUp', 'ConfDataUp', 'UnconfDataDown', 'ConfDataDown') AND $__timeFilter(ts) GROUP BY src ORDER BY last_seen DESC LIMIT 50;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "avg_rssi"},
+            "properties": [{"id": "unit", "value": "dBm"}]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "FCnt Progression",
+      "gridPos": {"x": 0, "y": 8, "w": 14, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT ts AS time, src AS metric, (fields->>'fcnt')::int AS fcnt FROM headers WHERE protocol = 'lora' AND fields->>'fcnt' IS NOT NULL AND $__timeFilter(ts) ORDER BY ts ASC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "pointSize": 4,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"]}
+      }
+    },
+    {
+      "id": 3,
+      "type": "piechart",
+      "title": "Frame Type Distribution",
+      "gridPos": {"x": 14, "y": 8, "w": 10, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT fields->>'mtype' AS frame_type, COUNT(*) AS count FROM headers WHERE protocol = 'lora' AND fields->>'mtype' IS NOT NULL AND $__timeFilter(ts) GROUP BY fields->>'mtype' ORDER BY count DESC;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": true
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Channel Usage (EU868)",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT CASE freq_hz WHEN 868100000 THEN 'CH0 (868.1)' WHEN 868300000 THEN 'CH1 (868.3)' WHEN 868500000 THEN 'CH2 (868.5)' WHEN 867100000 THEN 'CH3 (867.1)' WHEN 867300000 THEN 'CH4 (867.3)' WHEN 867500000 THEN 'CH5 (867.5)' WHEN 867700000 THEN 'CH6 (867.7)' WHEN 867900000 THEN 'CH7 (867.9)' ELSE 'Other' END AS channel, COUNT(*) AS frames FROM headers WHERE protocol = 'lora' AND freq_hz IS NOT NULL AND $__timeFilter(ts) GROUP BY freq_hz ORDER BY freq_hz;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "fillOpacity": 80,
+            "gradientMode": "none"
+          }
+        }
+      },
+      "options": {
+        "barWidth": 0.7,
+        "orientation": "vertical",
+        "legend": {"displayMode": "list", "placement": "bottom"},
+        "xField": "channel"
+      }
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Anomaly Alerts (FCnt Rollback / DevNonce Reuse)",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ts AS time, src AS device, fields->>'mtype' AS event_type, CASE WHEN fields->>'mtype' = 'JoinRequest' AND (SELECT COUNT(*) FROM headers h2 WHERE h2.protocol = 'lora' AND h2.fields->>'dev_eui' = headers.fields->>'dev_eui' AND h2.fields->>'dev_nonce' = headers.fields->>'dev_nonce' AND h2.ts < headers.ts) > 0 THEN 'DevNonce REUSE' WHEN fields->>'mtype' IN ('UnconfDataUp', 'ConfDataUp') AND (fields->>'fcnt')::int < COALESCE((SELECT MAX((h3.fields->>'fcnt')::int) FROM headers h3 WHERE h3.protocol = 'lora' AND h3.src = headers.src AND h3.ts < headers.ts), 0) THEN 'FCnt ROLLBACK' ELSE NULL END AS anomaly, fields->>'fcnt' AS fcnt, fields->>'dev_nonce' AS dev_nonce, fields->>'dev_eui' AS dev_eui FROM headers WHERE protocol = 'lora' AND $__timeFilter(ts) AND (fields->>'mtype' IN ('JoinRequest', 'UnconfDataUp', 'ConfDataUp', 'JoinRequest_Replay')) ORDER BY ts DESC LIMIT 100;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "anomaly"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background-solid"},
+              {"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+authorization:
+  client: "Lab Internal"
+  scope: "RF security assessment within shielded lab environment"
+  start_date: "2024-01-01"
+  end_date: "2026-12-31"
+  signed_by: "Lab Director"
+  signed_doc_sha256: ""
+  authorized_bands_mhz:
+    - "433-434"
+    - "863-870"
+    - "2400-2500"
+    - "5150-5850"
+  authorized_tx_bands_mhz:
+    - "433-434"
+    - "863-870"
+    - "2400-2500"
+  shielded_environment: true

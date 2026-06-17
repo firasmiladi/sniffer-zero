@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.env
+.envrc
+
+# Build / dist
+build/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artifacts
+captures/
+*.pcap
+*.pcapng
+*.cfile
+*.iq
+*.bin
+data/
+logs/
+reports/out/
+
+# Secrets (NEVER commit)
+secrets/
+*.key
+*.pem
+*.crt
+authorization/*.pdf
+
+# Docker volumes
+infra/volumes/
+
+# Lab artifacts
+lab/captures/
+lab/keys/

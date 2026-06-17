@@ -1,0 +1,8 @@
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="SRT-EXPORT", RUN+="/opt/sniffer/scripts/export.sh %k"
+
+# HackRF One - grant srt group access
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1d50", ATTR{idProduct}=="6089", GROUP="srt", MODE="0660"
+
+# ALFA RTL8812AU USB WiFi adapters - grant srt group access
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0bda", ATTR{idProduct}=="8812", GROUP="srt", MODE="0660"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0bda", ATTR{idProduct}=="881a", GROUP="srt", MODE="0660"

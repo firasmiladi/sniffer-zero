@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>sniffer-rt Assessment Report - {{ name }}</title>
+    <style>
+        {% include "report.css" %}
+    </style>
+</head>
+<body>
+
+<!-- CONFIDENTIAL Banner -->
+<div class="confidential-banner">
+    CONFIDENTIAL - Authorized Personnel Only
+</div>
+
+<!-- Title Block -->
+<div class="title-block">
+    <h1>sniffer-rt Assessment Report</h1>
+    <div class="meta">
+        <span>Scenario: <strong>{{ name }}</strong></span>
+        <span>Date: <strong>{{ generated_at[:10] }}</strong></span>
+        {% if session_meta.get('operator') %}
+        <span>Operator: <strong>{{ session_meta['operator'] }}</strong></span>
+        {% endif %}
+        {% if session_meta.get('session_id') %}
+        <span>Session: <strong>{{ session_meta['session_id'][:8] }}...</strong></span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Executive Summary -->
+<h2>Executive Summary</h2>
+
+{% set ok_count = results | selectattr('status.value', 'equalto', 'ok') | list | length %}
+{% set fail_count = results | selectattr('status.value', 'equalto', 'fail') | list | length %}
+{% set refused_count = results | selectattr('status.value', 'equalto', 'refused') | list | length %}
+{% set total_duration = results | map(attribute='duration_s') | sum %}
+
+<div class="summary-stats">
+    <div class="stat-box">
+        <div class="number">{{ results | length }}</div>
+        <div class="label">Modules Run</div>
+    </div>
+    <div class="stat-box">
+        <div class="number" style="color: #2e7d32;">{{ ok_count }}</div>
+        <div class="label">Passed</div>
+    </div>
+    <div class="stat-box">
+        <div class="number" style="color: #c62828;">{{ fail_count }}</div>
+        <div class="label">Failed</div>
+    </div>
+    <div class="stat-box">
+        <div class="number" style="color: #f57f17;">{{ refused_count }}</div>
+        <div class="label">Refused</div>
+    </div>
+    <div class="stat-box">
+        <div class="number">{{ "%.1f" | format(total_duration) }}s</div>
+        <div class="label">Total Duration</div>
+    </div>
+</div>
+
+<!-- Risk Summary -->
+<h2>Risk Summary</h2>
+
+{% set critical_count = results | selectattr('risk.value', 'equalto', 'critical') | list | length %}
+{% set high_count = results | selectattr('risk.value', 'equalto', 'high') | list | length %}
+{% set medium_count = results | selectattr('risk.value', 'equalto', 'medium') | list | length %}
+{% set low_count = results | selectattr('risk.value', 'equalto', 'low') | list | length %}
+{% set info_count = results | selectattr('risk.value', 'equalto', 'info') | list | length %}
+
+<table class="risk-table">
+    <thead>
+        <tr>
+            <th>Risk Level</th>
+            <th>Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style="background: #ffcdd2;"><td>Critical</td><td>{{ critical_count | default(0) }}</td></tr>
+        <tr style="background: #ffe0b2;"><td>High</td><td>{{ high_count | default(0) }}</td></tr>
+        <tr style="background: #fff9c4;"><td>Medium</td><td>{{ medium_count | default(0) }}</td></tr>
+        <tr style="background: #c8e6c9;"><td>Low</td><td>{{ low_count | default(0) }}</td></tr>
+        <tr style="background: #e3f2fd;"><td>Info</td><td>{{ info_count | default(0) }}</td></tr>
+    </tbody>
+</table>
+
+<!-- Findings -->
+<h2>Findings</h2>
+
+{% for r in results %}
+<div class="finding finding-{{ r.status.value }}">
+    <div class="finding-header">
+        <code>{{ r.module_name }}</code>
+        <span class="badge badge-{{ r.status.value }}">{{ r.status.value }}</span>
+    </div>
+    <div class="finding-meta">
+        Protocol: {{ r.protocol | default('N/A') }} |
+        Risk: {{ r.risk.value | default('N/A') }} |
+        Duration: {{ "%.1f" | format(r.duration_s | default(0)) }}s
+        {% if r.mitre_ttp %} | MITRE: {{ r.mitre_ttp | join(', ') }}{% endif %}
+    </div>
+    {% if r.summary %}
+    <p style="margin-top: 8px;">{{ r.summary | default('N/A') }}</p>
+    {% endif %}
+    {% if r.metrics %}
+    <p style="margin-top: 4px; font-size: 9pt; color: #616161;">
+        Metrics: {{ r.metrics }}
+    </p>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Cross-Protocol Correlation -->
+<h2>Cross-Protocol Correlation</h2>
+
+{% if correlation and correlation.cross_protocol_devices %}
+<p>
+    <strong>{{ correlation.cross_protocol_devices | length }}</strong> correlated device(s) found
+    across protocols ({{ correlation.summary.protocols_observed | default([]) | join(', ') | default('N/A') }}).
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>WiFi MAC</th>
+            <th>BLE MAC</th>
+            <th>LoRa DevAddr</th>
+            <th>Confidence</th>
+            <th>Evidence</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for dev in correlation.cross_protocol_devices %}
+        <tr>
+            <td><code>{{ dev.wifi_mac | default('N/A') }}</code></td>
+            <td><code>{{ dev.ble_mac | default('N/A') }}</code></td>
+            <td><code>{{ dev.lora_devaddr | default('N/A') }}</code></td>
+            <td>{{ "%.0f" | format((dev.confidence_score | default(0)) * 100) }}%</td>
+            <td>{{ dev.evidence.match_type | default('N/A') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No cross-protocol correlation data available for this session.</p>
+{% endif %}
+
+<!-- MITRE ATT&CK Coverage -->
+<h2 class="page-break">MITRE ATT&amp;CK Coverage</h2>
+
+{% if mitre_map %}
+<table>
+    <thead>
+        <tr>
+            <th>Technique ID</th>
+            <th>Name</th>
+            <th>Tactic</th>
+            <th>Tested By</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tid, modules in mitre_map.items() %}
+        {% set info = mitre_db.get(tid, {}) if mitre_db else {} %}
+        <tr style="background: {% if modules | length >= 3 %}#e8f5e9{% elif modules | length >= 2 %}#f1f8e9{% else %}#fffde7{% endif %};">
+            <td><code>{{ tid }}</code></td>
+            <td>{{ info.get('name', tid) if info else tid }}</td>
+            <td>{{ info.get('tactic', '-') if info else '-' }}</td>
+            <td>{{ modules | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No MITRE ATT&amp;CK techniques were mapped in this session.</p>
+{% endif %}
+
+<!-- Recommendations -->
+<h2>Recommendations</h2>
+
+{% if mitre_map %}
+<p>Based on the techniques tested, the following mitigations are recommended:</p>
+{% for tid in mitre_map.keys() %}
+<div class="recommendation">
+    <div class="rec-technique">{{ tid }}</div>
+    <div class="rec-text">Refer to MITRE ATT&amp;CK framework for specific mitigations for this technique.</div>
+</div>
+{% endfor %}
+{% else %}
+<p>No specific recommendations - no techniques were mapped.</p>
+{% endif %}
+
+<!-- Appendix -->
+<h2 class="page-break">Appendix: Raw Results</h2>
+
+<div class="appendix">
+<pre>
+{% for r in results %}
+{
+  "module_name": "{{ r.module_name }}",
+  "protocol": "{{ r.protocol }}",
+  "risk": "{{ r.risk.value }}",
+  "status": "{{ r.status.value }}",
+  "duration_s": {{ "%.2f" | format(r.duration_s) }},
+  "summary": "{{ r.summary }}",
+  "mitre_ttp": {{ r.mitre_ttp }},
+  "artifacts": {{ r.artifacts }}
+}{% if not loop.last %},{% endif %}
+{% endfor %}
+</pre>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    Generated by sniffer-rt | {{ generated_at }} | CONFIDENTIAL
+</div>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+# BLE Deep Audit - Full enumeration + security analysis + exploitation
+#
+# Usage:
+#   srt scenario scenarios/ble_deep_audit.yaml
+#   srt scenario scenarios/ble_deep_audit.yaml --var target_mac=DE:AD:BE:EF:00:01
+#
+# Requires:
+#   - BLE adapter (hci0)
+#   - Target MAC in safety/whitelist.yaml
+
+name: ble_deep_audit
+description: >
+  Complete BLE deep audit: discover all peripherals, enumerate GATT profiles,
+  assess security of each device, analyze pairing vulnerabilities, track MAC
+  randomization patterns, decode protocol details, then attempt exploitation
+  (unauthorized write, pairing crack). Continues on failure for maximum coverage.
+
+variables:
+  target_mac: "DE:AD:BE:EF:00:01"
+  scan_duration: "30"
+
+options:
+  bail_on_fail: false
+  report_format:
+    - json
+    - markdown
+
+steps:
+  - module: ble.recon
+    id: scan
+    params:
+      duration_s: "{{scan_duration}}"
+
+  - module: ble.gatt_enum
+    id: gatt
+    params:
+      target_mac: "{{target_mac}}"
+
+  - module: ble.gatt_security_assessor
+    id: security
+    params:
+      target_mac: "{{target_mac}}"
+
+  - module: ble.pairing_analyzer
+    id: pairing
+    params:
+      target_mac: "{{target_mac}}"
+
+  - module: ble.mac_randomization_tracker
+    id: mac_track
+    params:
+      analysis_window_s: 60
+
+  - module: ble.protocol_analyzer
+    id: protocol
+    params:
+      target_mac: "{{target_mac}}"
+
+  - module: ble.unauth_write
+    params:
+      target_mac: "{{target_mac}}"
+
+  - module: ble.pair_crack
+    params:
+      target_mac: "{{target_mac}}"

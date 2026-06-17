@@ -1,0 +1,92 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "CARTOGRAPHIE RF - Vue d'ensemble",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "rawSql": "SELECT count(*) as total_emetteurs FROM cartographie.emetteurs WHERE derniere_detection > NOW() - INTERVAL '1 hour'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Émetteurs par Type",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "rawSql": "SELECT type_emetteur, count(*) FROM cartographie.emetteurs GROUP BY type_emetteur",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Occupation des Bandes ISM",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "targets": [
+        {
+          "rawSql": "SELECT bande_ism, count(*) as nb_signaux FROM cartographie.signaux GROUP BY bande_ism ORDER BY nb_signaux DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Carte des Menaces",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "targets": [
+        {
+          "rawSql": "SELECT nom, type_emetteur, niveau_menace, frequence_mhz, puissance_dbm FROM cartographie.emetteurs WHERE niveau_menace > 50 ORDER BY niveau_menace DESC LIMIT 20",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Spectre RF en Temps Réel",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "rawSql": "SELECT time_bucket('10 seconds', timestamp) as time, frequence_centre_mhz, puissance_dbm FROM cartographie.signaux WHERE timestamp > NOW() - INTERVAL '5 minutes' ORDER BY time",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Alertes Actives",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "rawSql": "SELECT timestamp, emetteur_id, type_alerte, niveau_menace, description FROM cartographie.alertes WHERE timestamp > NOW() - INTERVAL '1 hour' ORDER BY timestamp DESC LIMIT 10",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Historique Détections (24h)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "rawSql": "SELECT time_bucket('5 minutes', timestamp) as time, count(*) as nb_detections FROM cartographie.signaux WHERE timestamp > NOW() - INTERVAL '24 hours' GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["cartographie", "rf", "militaire", "sigint"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "uid": "cartographie-rf-defense"
+}

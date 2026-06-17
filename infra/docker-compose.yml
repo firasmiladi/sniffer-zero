@@ -1,0 +1,107 @@
+# sniffer-rt infrastructure stack
+#
+# Brings up:
+#   - TimescaleDB (PostgreSQL + time-series) for header/event storage
+#   - Grafana for dashboards
+#   - Mosquitto (MQTT) for the live event bus
+#   - ChirpStack (LoRaWAN network server) as a lab target / replay sink
+#
+# Usage:
+#   docker compose -f infra/docker-compose.yml up -d
+#   docker compose -f infra/docker-compose.yml ps
+#   docker compose -f infra/docker-compose.yml logs -f timescaledb
+
+name: srt
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.15.2-pg16
+    container_name: srt-timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: srt
+      POSTGRES_PASSWORD: srt_dev_password
+      POSTGRES_DB: srt
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./volumes/timescaledb:/var/lib/postgresql/data
+      - ./timescaledb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U srt -d srt"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [srt]
+
+  grafana:
+    image: grafana/grafana-oss:11.1.0
+    container_name: srt-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_INSTALL_PLUGINS: ""
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./volumes/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    networks: [srt]
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: srt-mosquitto
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1883:1883"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./volumes/mosquitto/data:/mosquitto/data
+      - ./volumes/mosquitto/log:/mosquitto/log
+    networks: [srt]
+
+  # --- LoRaWAN lab target ---------------------------------------------------
+  chirpstack-redis:
+    image: redis:7-alpine
+    container_name: srt-chirpstack-redis
+    restart: unless-stopped
+    volumes:
+      - ./volumes/chirpstack-redis:/data
+    networks: [srt]
+
+  chirpstack-postgres:
+    image: postgres:16-alpine
+    container_name: srt-chirpstack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chirpstack
+      POSTGRES_PASSWORD: chirpstack
+      POSTGRES_DB: chirpstack
+    volumes:
+      - ./volumes/chirpstack-postgres:/var/lib/postgresql/data
+    networks: [srt]
+
+  chirpstack:
+    image: chirpstack/chirpstack:4
+    container_name: srt-chirpstack
+    restart: unless-stopped
+    command: -c /etc/chirpstack
+    volumes:
+      - ./chirpstack/config:/etc/chirpstack:ro
+    depends_on:
+      - chirpstack-postgres
+      - chirpstack-redis
+      - mosquitto
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [srt]
+
+networks:
+  srt:
+    driver: bridge

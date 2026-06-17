@@ -1,0 +1,76 @@
+# Continuous Monitoring - Long-running passive surveillance
+#
+# Usage:
+#   srt scenario scenarios/continuous_monitor.yaml
+#
+# Runs in loop mode: cycles through all recon + passive analysis modules
+# indefinitely. Anomaly detection alerts on security events.
+# Perfect for Raspberry Pi deployment with systemd.
+#
+# All modules are PASSIVE risk - no active attacks.
+
+name: continuous_monitor
+description: >
+  Continuous passive monitoring with anomaly detection on all protocols.
+  Loops indefinitely through WiFi, BLE, and LoRa reconnaissance and
+  analysis modules. Alerts on security events via Grafana alerting.
+  Ideal for unattended Raspberry Pi deployment.
+
+options:
+  bail_on_fail: false
+  loop: true
+  loop_delay_s: 30
+  report_format:
+    - json
+
+steps:
+  # WiFi passive monitoring
+  - module: wifi.recon
+    id: wifi_scan
+    params:
+      duration_s: 120
+      channels: "1-13"
+
+  - module: wifi.timing_analyzer
+    id: wifi_timing
+    params:
+      analysis_window_s: 120
+
+  - module: wifi.probe_fingerprinter
+    id: wifi_fingerprint
+    params: {}
+
+  - module: wifi.security_assessor
+    id: wifi_security
+    params: {}
+
+  # BLE passive monitoring
+  - module: ble.recon
+    id: ble_scan
+    params:
+      duration_s: 60
+
+  - module: ble.mac_randomization_tracker
+    id: ble_mac_track
+    params:
+      analysis_window_s: 60
+
+  - module: ble.protocol_analyzer
+    id: ble_protocol
+    params: {}
+
+  # LoRaWAN passive monitoring
+  - module: lora.recon
+    id: lora_scan
+    params:
+      duration_s: 120
+      band: eu868
+
+  - module: lora.anomaly_detector
+    id: lora_anomaly
+    params:
+      analysis_window_s: 300
+
+  - module: lora.traffic_profiler
+    id: lora_profile
+    params: {}

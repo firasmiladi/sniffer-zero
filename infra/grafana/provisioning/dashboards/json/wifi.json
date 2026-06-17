@@ -1,0 +1,100 @@
+{
+  "title": "sniffer-rt - WiFi Deep-Dive",
+  "uid": "srt-wifi",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "APs Discovered",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT DISTINCT ON (src) src AS bssid, fields->>'ssid' AS ssid, channel, rssi_dbm AS rssi, fields->>'encryption' AS encryption, MIN(ts) AS first_seen, MAX(ts) AS last_seen, COUNT(*) AS beacon_count FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'beacon' AND $__timeFilter(ts) GROUP BY src, fields->>'ssid', channel, rssi_dbm, fields->>'encryption' ORDER BY src, last_seen DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "barchart",
+      "title": "Clients per AP",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(fields->>'bssid', dst) AS ap, COUNT(DISTINCT src) AS client_count FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'data' AND $__timeFilter(ts) GROUP BY COALESCE(fields->>'bssid', dst) ORDER BY client_count DESC LIMIT 20;"
+      }],
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "RSSI Over Time",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('30 seconds', ts) AS time, src AS metric, AVG(rssi_dbm) AS value FROM headers WHERE protocol = 'wifi' AND rssi_dbm IS NOT NULL AND $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dBm",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "piechart",
+      "title": "Frame Type Distribution",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT fields->>'frame_type' AS frame_type, COUNT(*) AS count FROM headers WHERE protocol = 'wifi' AND $__timeFilter(ts) GROUP BY fields->>'frame_type' ORDER BY count DESC;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Deauth Events",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ts AS time, src AS bssid, dst AS client, (fields->>'reason')::text AS reason, (fields->>'count')::text AS frame_count, fields->>'direction' AS direction FROM headers WHERE protocol = 'wifi' AND fields->>'frame_type' = 'deauth' AND $__timeFilter(ts) ORDER BY ts DESC LIMIT 100;"
+      }],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

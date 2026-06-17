@@ -1,0 +1,56 @@
+# LoRaWAN Deep Audit - Full capture + decode + anomaly detection + replay
+#
+# Usage:
+#   srt scenario scenarios/lora_deep_audit.yaml
+#
+# Requires:
+#   - HackRF for passive capture
+#   - Target DevAddr in whitelist for replay test
+
+name: lora_deep_audit
+description: >
+  Complete LoRaWAN deep audit: 2-minute passive capture on EU868, full frame
+  decode with MAC command analysis, real-time anomaly detection (FCnt rollback,
+  DevNonce reuse, replay), traffic profiling, key extraction attempt,
+  then replay demonstration on ABP devices.
+
+variables:
+  capture_duration: "120"
+  target_devaddr: "01020304"
+  band: "eu868"
+
+options:
+  bail_on_fail: false
+  report_format:
+    - json
+    - markdown
+
+steps:
+  - module: lora.recon
+    id: capture
+    params:
+      duration_s: "{{capture_duration}}"
+      band: "{{band}}"
+      sf: 7
+
+  - module: lora.frame_decoder
+    id: decode
+    params: {}
+
+  - module: lora.anomaly_detector
+    id: anomaly
+    params:
+      analysis_window_s: 300
+
+  - module: lora.traffic_profiler
+    id: profile
+    params: {}
+
+  - module: lora.key_extractor
+    id: keys
+    params:
+      try_default_keys: true
+
+  - module: lora.replay_abp
+    params:
+      target_devaddr: "{{target_devaddr}}"

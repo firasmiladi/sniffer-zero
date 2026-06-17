@@ -1,0 +1,116 @@
+{
+  "title": "sniffer-rt - BLE Deep-Dive",
+  "uid": "srt-ble",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "BLE Advertising Devices",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT DISTINCT ON (src) src AS mac, fields->>'name' AS name, rssi_dbm AS rssi, fields->>'services' AS services, fields->>'manufacturer_data' AS manufacturer_data, fields->>'tx_power' AS tx_power, MIN(ts) AS first_seen, MAX(ts) AS last_seen, COUNT(*) AS adv_count FROM headers WHERE protocol = 'ble' AND fields->>'frame_type' IS NULL AND $__timeFilter(ts) GROUP BY src, fields->>'name', rssi_dbm, fields->>'services', fields->>'manufacturer_data', fields->>'tx_power' ORDER BY src, last_seen DESC;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "MAC Randomization Tracking",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('1 minute', ts) AS time, COUNT(DISTINCT src) AS unique_macs, COUNT(*) AS total_adverts FROM headers WHERE protocol = 'ble' AND $__timeFilter(ts) GROUP BY 1 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "unique_macs"},
+            "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "GATT Services Discovered",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT src AS device_mac, fields->>'name' AS device_name, (fields->>'service_count')::int AS services, (fields->>'characteristic_count')::int AS characteristics, (fields->>'security_findings')::int AS findings, ts AS enumerated_at FROM headers WHERE protocol = 'ble' AND fields->>'frame_type' = 'gatt_enum' AND $__timeFilter(ts) ORDER BY ts DESC LIMIT 50;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Pairing Events Timeline",
+      "gridPos": {"x": 0, "y": 16, "w": 14, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ts AS time, src AS target_mac, fields->>'frame_type' AS event_type, CASE WHEN (fields->>'ltk_recovered')::boolean THEN 'LTK Recovered' WHEN (fields->>'tk_recovered')::boolean THEN 'TK Recovered' ELSE 'Capture Only' END AS result FROM headers WHERE protocol = 'ble' AND fields->>'frame_type' IN ('pair_crack', 'connection_hijack', 'mitm', 'unauth_write') AND $__timeFilter(ts) ORDER BY ts DESC LIMIT 100;"
+      }],
+      "options": {
+        "tooltip": {"mode": "multi"},
+        "legend": {"displayMode": "list", "placement": "bottom"}
+      }
+    },
+    {
+      "id": 5,
+      "type": "piechart",
+      "title": "Vendor Distribution",
+      "gridPos": {"x": 14, "y": 16, "w": 10, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(SUBSTRING(src FROM 1 FOR 8), 'Unknown') AS vendor_prefix, COUNT(DISTINCT src) AS device_count FROM headers WHERE protocol = 'ble' AND $__timeFilter(ts) GROUP BY vendor_prefix ORDER BY device_count DESC LIMIT 15;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": true
+        }
+      }
+    }
+  ]
+}

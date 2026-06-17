@@ -1,0 +1,27 @@
+# LoRaWAN OTAA Join Replay scenario
+# Chains: passive recon → join request capture → replay join
+#
+# Usage:
+#   srt scenario scenarios/lora_otaa_join_replay.yaml
+#
+# Requires:
+#   - HackRF One
+#   - gr-lora_sdr
+#   - OTAA device with DevNonce reuse vulnerability (LoRaWAN 1.0.x)
+
+name: lora_otaa_join_replay
+description: >
+  Capture a Join Request from an OTAA device, then replay it to test
+  whether the network server enforces DevNonce uniqueness.
+
+steps:
+  - module: lora.recon
+    params:
+      duration_s: 180
+      band: eu868
+
+  - module: lora.join_replay
+    params:
+      deveui: "0011223344556677"     # ← replace with lab device
+      freq_hz: 868100000
+      capture_file: "data/captures/lora_join_request.cfile"

@@ -1,0 +1,217 @@
+{
+  "title": "sniffer-rt - LoRaWAN Advanced Analysis",
+  "uid": "srt-lora-advanced",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Device Activity Timeline",
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('1 minute', ts) AS time, src AS metric, MAX((fields->>'fcnt')::int) AS value FROM headers WHERE protocol = 'lora' AND fields->>'fcnt' IS NOT NULL AND $__timeFilter(ts) GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "pointSize": 5,
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": ["max", "last"]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Anomaly Event Log",
+      "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT d->>'type' AS anomaly_type, d->>'dev_addr' AS device, d->>'ts' AS detected_at, COALESCE(d->>'detail', d->>'severity', '') AS detail FROM module_results mr, jsonb_array_elements(mr.artifacts::jsonb->0->'data') AS d WHERE mr.module_name = 'lora.anomaly_detector' AND mr.status = 'ok' ORDER BY (d->>'ts') DESC LIMIT 100;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "severity"},
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {"type": "value", "options": {"critical": {"color": "red", "text": "CRITICAL"}}},
+                  {"type": "value", "options": {"high": {"color": "orange", "text": "HIGH"}}},
+                  {"type": "value", "options": {"medium": {"color": "yellow", "text": "MEDIUM"}}},
+                  {"type": "value", "options": {"low": {"color": "blue", "text": "LOW"}}}
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "Channel Usage Distribution",
+      "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT freq_hz::text AS frequency_hz, COUNT(*) AS frame_count FROM headers WHERE protocol = 'lora' AND freq_hz IS NOT NULL AND $__timeFilter(ts) GROUP BY freq_hz ORDER BY freq_hz;"
+      }],
+      "options": {
+        "orientation": "vertical",
+        "showValue": "always",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 4,
+      "type": "piechart",
+      "title": "SF/DR Distribution",
+      "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT COALESCE(fields->>'sf', 'Unknown') AS spreading_factor, COUNT(*) AS frame_count FROM headers WHERE protocol = 'lora' AND $__timeFilter(ts) GROUP BY fields->>'sf' ORDER BY frame_count DESC;"
+      }],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "pieType": "donut"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Uplink Interval Analysis",
+      "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('5 minutes', ts) AS time, src AS metric, AVG(interval_sec) AS value FROM (SELECT src, ts, EXTRACT(EPOCH FROM ts - LAG(ts) OVER (PARTITION BY src ORDER BY ts)) AS interval_sec FROM headers WHERE protocol = 'lora' AND $__timeFilter(ts)) sub WHERE interval_sec IS NOT NULL GROUP BY 1, 2 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Payload Size Distribution",
+      "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT (fields->>'frm_payload_len')::text AS payload_size_bytes, COUNT(*) AS frame_count FROM headers WHERE protocol = 'lora' AND fields->>'frm_payload_len' IS NOT NULL AND $__timeFilter(ts) GROUP BY fields->>'frm_payload_len' ORDER BY (fields->>'frm_payload_len')::int;"
+      }],
+      "options": {
+        "orientation": "vertical",
+        "showValue": "auto",
+        "barWidth": 0.8
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Join Request Activity",
+      "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT time_bucket('5 minutes', ts) AS time, 'JoinRequest' AS metric, COUNT(*) AS value FROM headers WHERE protocol = 'lora' AND fields->>'mtype' = 'JoinRequest' AND $__timeFilter(ts) GROUP BY 1 ORDER BY 1;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "drawStyle": "bars"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Network Health Score",
+      "gridPos": {"x": 0, "y": 32, "w": 24, "h": 4},
+      "datasource": {"type": "postgres", "uid": "TimescaleDB"},
+      "targets": [{
+        "format": "table",
+        "rawSql": "SELECT ROUND(100.0 * (1.0 - COALESCE((SELECT COUNT(*)::float FROM module_results WHERE module_name = 'lora.anomaly_detector' AND $__timeFilter(ts)), 0) / GREATEST((SELECT COUNT(*)::float FROM headers WHERE protocol = 'lora' AND $__timeFilter(ts)), 1)), 1) AS health_score;"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 50},
+              {"color": "yellow", "value": 75},
+              {"color": "green", "value": 90}
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    }
+  ]
+}
