@@ -60,6 +60,6 @@ steps:
     params:
       target_mac: "{{target_mac}}"
 
-  - module: ble.pair_crack
+  - module: ble.pair_capture
     params:
       target_mac: "{{target_mac}}"

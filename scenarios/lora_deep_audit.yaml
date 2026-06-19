@@ -51,6 +51,6 @@ steps:
     params:
       try_default_keys: true
 
-  - module: lora.replay_abp
+  - module: lora.uplink_replay_abp
     params:
       target_devaddr: "{{target_devaddr}}"

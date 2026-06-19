@@ -75,7 +75,7 @@ services:
       - ./volumes/chirpstack-redis:/data
     networks: [srt]
 
-    chirpstack-postgres:
+  chirpstack-postgres:
     image: postgres:16-alpine
     container_name: srt-chirpstack-postgres
     restart: unless-stopped
@@ -85,7 +85,7 @@ services:
       POSTGRES_DB: chirpstack
     volumes:
       - ./volumes/chirpstack-postgres:/var/lib/postgresql/data
-      - ./chirpstack/postgres-init:/docker-entrypoint-initdb.d:ro   # ← AJOUTER CETTE LIGNE
+      - ./chirpstack/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chirpstack -d chirpstack"]
       interval: 5s
@@ -101,9 +101,12 @@ services:
     volumes:
       - ./chirpstack/config:/etc/chirpstack:ro
     depends_on:
-      - chirpstack-postgres
-      - chirpstack-redis
-      - mosquitto
+      chirpstack-postgres:
+        condition: service_healthy
+      chirpstack-redis:
+        condition: service_started
+      mosquitto:
+        condition: service_started
     ports:
       - "127.0.0.1:8080:8080"
     networks: [srt]
