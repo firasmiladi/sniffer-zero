@@ -279,8 +279,8 @@ class MoteurCartographie:
 
     def _determiner_priorite(self, type_em: TypeEmetteur, signal: SignalDetecte) -> PrioriteSignal:
         """Détermine la priorité d'un émetteur"""
-        if type_em in [TypeEmetteur.DRONE_MILITAIRE, TypeEmetteur.BROUILLEUR,
-                       TypeEmetteur.MILITAIRE_JAMMER]:
+        if type_em in [TypeEmetteur.DRONE_PRO, TypeEmetteur.BROUILLEUR,
+                       TypeEmetteur.EMETTEUR_INTERFEREUR]:
             return PrioriteSignal.CRITIQUE
         elif type_em in [TypeEmetteur.INCONNU, TypeEmetteur.DRONE_COMMERCIAL]:
             return PrioriteSignal.HAUTE
@@ -299,7 +299,7 @@ class MoteurCartographie:
             TypeEmetteur.LORA_DEVICE: "#FF9800",
             TypeEmetteur.LORA_GATEWAY: "#FF5722",
             TypeEmetteur.DRONE_COMMERCIAL: "#F44336",
-            TypeEmetteur.DRONE_MILITAIRE: "#D32F2F",
+            TypeEmetteur.DRONE_PRO: "#D32F2F",
             TypeEmetteur.BROUILLEUR: "#B71C1C",
             TypeEmetteur.INCONNU: "#9E9E9E",
             TypeEmetteur.CELLULAIRE_5G: "#9C27B0",
