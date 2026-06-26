@@ -184,8 +184,10 @@ class Orchestrator:
         session_id: uuid.UUID | None = None,
     ) -> AttackResult:
         auth, whitelist = safety.evaluate()
+        if session_id is None:
+            session_id = db.start_session(operator=self.operator, scenario="cli-run")
         ctx = ModuleContext(
-            session_id=session_id or uuid.uuid4(),
+            session_id=session_id,
             operator=self.operator,
             params=params or {},
             dry_run=self.dry_run,

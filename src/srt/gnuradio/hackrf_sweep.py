@@ -399,7 +399,16 @@ class HackRFSweep:
         except Exception as exc:
             log.error("hackrf_sweep.continuous.error", error=str(exc))
         finally:
-            self.stop()
+            import threading as _t
+            if self._monitor_thread is not _t.current_thread():
+                self.stop()
+            else:
+                self._stop_event.set()
+                if getattr(self, "_process", None):
+                    try:
+                        self._process.terminate()
+                    except Exception:
+                        pass
 
     def _simulated_continuous(self, duration_s: float | None) -> None:
         """Simulated continuous sweep when hardware is not available."""

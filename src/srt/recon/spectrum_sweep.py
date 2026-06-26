@@ -86,6 +86,20 @@ class SpectrumSweep(AttackModule):
     )
 
     def precheck(self, ctx: ModuleContext) -> bool:
+        p = ctx.params
+        for k in ('freq_start_mhz', 'freq_end_mhz'):
+            if k in p and isinstance(p[k], str):
+                try:
+                    p[k] = float(p[k])
+                except ValueError:
+                    pass
+        for k in ('bin_width_hz', 'duration_s', 'lna_gain', 'vga_gain'):
+            if k in p and isinstance(p[k], str):
+                try:
+                    p[k] = int(p[k])
+                except ValueError:
+                    pass
+
         """Check that parameters are valid."""
         if not super().precheck(ctx):
             return False
