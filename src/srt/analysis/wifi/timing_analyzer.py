@@ -61,7 +61,7 @@ class WiFiTimingAnalyzer(AttackModule):
             bssid = b.get("src", "")
             ts = b.get("ts")
             if bssid and ts is not None:
-                bssid_beacons.setdefault(bssid, []).append(float(ts))
+                bssid_beacons.setdefault(bssid, []).append(ts.timestamp() if hasattr(ts, "timestamp") else float(ts))
 
         anomalies: list[dict[str, Any]] = []
         for bssid, timestamps in bssid_beacons.items():
@@ -116,7 +116,7 @@ class WiFiTimingAnalyzer(AttackModule):
             bssid = d.get("src", "")
             ts = d.get("ts")
             if bssid and ts is not None:
-                bssid_deauths.setdefault(bssid, []).append(float(ts))
+                bssid_deauths.setdefault(bssid, []).append(ts.timestamp() if hasattr(ts, "timestamp") else float(ts))
 
         floods: list[dict[str, Any]] = []
         for bssid, timestamps in bssid_deauths.items():
@@ -151,7 +151,7 @@ class WiFiTimingAnalyzer(AttackModule):
             client = p.get("src", "")
             ts = p.get("ts")
             if client and ts is not None:
-                client_probes.setdefault(client, []).append(float(ts))
+                client_probes.setdefault(client, []).append(ts.timestamp() if hasattr(ts, "timestamp") else float(ts))
 
         profiles: list[dict[str, Any]] = []
         for client, timestamps in client_probes.items():

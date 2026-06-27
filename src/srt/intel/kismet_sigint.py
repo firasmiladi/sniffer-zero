@@ -44,7 +44,7 @@ class IntelKismetSigint(AttackModule):
     def run(self, ctx: ModuleContext) -> AttackResult:
         started = time.time()
 
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         duration = int(ctx.params.get("duration_s", 600))
         log_dir = ctx.params.get("log_dir", ctx.workdir)
 

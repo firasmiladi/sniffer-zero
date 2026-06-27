@@ -332,7 +332,7 @@ class WiFiFrameDissector(AttackModule):
         started = time.time()
         capture_file = ctx.params.get("capture_file")
         duration_s = int(ctx.params.get("duration_s", 30))
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
 
         if ctx.dry_run:
             return self._result(

@@ -170,7 +170,7 @@ async def launch_scenario(name: str) -> ScenarioLaunchResponse:
     # Run scenario in background thread
     def _run_scenario() -> None:
         try:
-            orch = Orchestrator(dry_run=True, operator="web-ui")
+            orch = Orchestrator(dry_run=False, operator="web-ui")
             for i, step in enumerate(scenario.steps):
                 run_info["current_step"] = step.module
                 run_info["steps_completed"] = i

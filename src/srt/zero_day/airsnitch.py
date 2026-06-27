@@ -58,7 +58,7 @@ class ZeroDayAirSnitch(AttackModule):
 
         target_bssid = ctx.params.get("bssid")
         target_client = ctx.params.get("target_client")
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         channel = ctx.params.get("channel")
         attack_vector = ctx.params.get("vector", "all")
         duration = int(ctx.params.get("duration_s", 60))

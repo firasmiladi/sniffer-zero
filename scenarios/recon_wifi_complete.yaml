@@ -25,6 +25,7 @@ steps:
   - module: wifi.recon
     id: wifi_scan
     params:
+      interface: wlan0
       duration_s: 120
       channels: "1-13"
 

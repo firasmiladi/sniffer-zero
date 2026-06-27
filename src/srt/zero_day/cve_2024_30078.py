@@ -51,7 +51,7 @@ class ZeroDayCve202430078(AttackModule):
         started = time.time()
 
         target_mac = ctx.params.get("target_mac")
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         channel = ctx.params.get("channel")
         count = int(ctx.params.get("count", 100))
 

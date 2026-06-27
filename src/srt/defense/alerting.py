@@ -76,7 +76,7 @@ class DefenseAlerting(AttackModule):
     def run(self, ctx: ModuleContext) -> AttackResult:
         started = time.time()
 
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         duration = int(ctx.params.get("duration_s", 300))
         deauth_threshold = int(ctx.params.get("deauth_threshold", 20))
         deauth_window = int(ctx.params.get("deauth_window_s", 5))

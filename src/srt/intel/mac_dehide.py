@@ -79,7 +79,7 @@ class IntelMacDehide(AttackModule):
     def run(self, ctx: ModuleContext) -> AttackResult:
         started = time.time()
 
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         duration = int(ctx.params.get("duration_s", 120))
 
         if ctx.dry_run:

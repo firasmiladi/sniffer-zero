@@ -235,7 +235,7 @@ class WifiRecon(AttackModule):
 
     def run(self, ctx: ModuleContext) -> AttackResult:
         started = time.time()
-        iface = ctx.params.get("interface", "wlan0mon")
+        iface = ctx.params.get("interface", "wlan0")
         duration = int(ctx.params.get("duration_s", 30))
         channel_spec = ctx.params.get("channels", "1-13")
         dwell_ms = int(ctx.params.get("dwell_ms", 200))
