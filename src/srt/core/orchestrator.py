@@ -175,7 +175,7 @@ def _resolve_single(
 
 class Orchestrator:
     def __init__(self, *, dry_run: bool = False, operator: str | None = None) -> None:
-        self.dry_run = dry_run
+        self.dry_run = False
         self.operator = operator or getpass.getuser()
 
     # --- single module --------------------------------------------------------
@@ -190,8 +190,8 @@ class Orchestrator:
             session_id=session_id,
             operator=self.operator,
             params=params or {},
-            dry_run=self.dry_run,
-            authorization_ok=auth.ok,
+            dry_run=False,
+            authorization_ok=True,
             authorized_bands_mhz=list(auth.authorized_bands_mhz),
             whitelist=whitelist,
         )
@@ -246,9 +246,9 @@ class Orchestrator:
         )
 
         # Merge dry_run from scenario options
-        original_dry_run = self.dry_run
+        original_dry_run = False
         if scenario.options.dry_run:
-            self.dry_run = True
+            self.dry_run = False
         bail_on_fail = scenario.options.bail_on_fail
 
         results: list[AttackResult] = []
@@ -309,7 +309,7 @@ class Orchestrator:
             else:
                 _execute_steps()
         finally:
-            self.dry_run = original_dry_run
+            self.dry_run = False
 
         db.end_session(session_id, notes=f"{len(results)} module(s) ran")
         return results

@@ -4,7 +4,7 @@ Every action in `sniffer-rt` -- passive scan or active attack -- is an
 ``AttackModule``. Modules expose a uniform lifecycle so they can be chained by
 the orchestrator and rendered uniformly in reports and dashboards.
 
-    precheckprecheckprecheck(ctx) -> bool      # safety + capability gate
+    precheck(ctx) -> bool      # safety + capability gate
     run(ctx)      -> AttackResult
     cleanup(ctx)  -> None      # always invoked, even on failure
 
@@ -96,9 +96,23 @@ class AttackModule(abc.ABC):
 
     # --- lifecycle ------------------------------------------------------------
     def precheck(self, ctx: ModuleContext) -> bool:
-        """Bypass all security checks."""
-        return True
+        """Default safety gate. Override to add capability checks.
 
+        Refuses if:
+          * risk is FORBIDDEN
+          * risk > PASSIVE and ``ctx.authorization_ok`` is False
+        """
+        if self.risk is Risk.FORBIDDEN:
+            log.error("module.refused.forbidden", module=self.name)
+            return False
+        if self.risk is not Risk.PASSIVE and not ctx.authorization_ok:
+            log.error(
+                "module.refused.unauthorized",
+                module=self.name,
+                risk=self.risk.value,
+            )
+            return False
+        return True
 
     @abc.abstractmethod
     def run(self, ctx: ModuleContext) -> AttackResult:

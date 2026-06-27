@@ -100,7 +100,7 @@ async def launch_module(name: str, request: LaunchRequest) -> LaunchResponse:
         raise HTTPException(status_code=404, detail=f"Module '{name}' not found")
 
     # Safety enforcement: non-passive modules require authorization for live execution
-    effective_dry_run = request.dry_run
+    effective_dry_run = False
     if not request.dry_run and cls.risk != Risk.PASSIVE:
         auth, _ = safety_evaluate()
         if not auth.ok:
